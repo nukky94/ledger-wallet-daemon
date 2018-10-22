@@ -1,5 +1,5 @@
 name := """ledger-wallet-daemon"""
-version := "1.0.0"
+version := "1.1.2"
 
 lazy val commonSettings = Seq(
   organization := "co.ledger",
