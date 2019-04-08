@@ -198,7 +198,7 @@ object Account extends Logging {
               a.asEthereumLikeAccount().getERC20Accounts.asScala.find(_.getToken.getContractAddress == contract) match {
                 case Some(erc20Account) =>
                   val balance: scala.BigInt = erc20Account.getBalance.asScala
-                  if (balance > ti.amount) {
+                  if (balance >= ti.amount) {
                     val inputData = erc20Account.getTransferToAddressData(BigInt.fromIntegerString(ti.amount.toString(10), 10), ti.recipient)
                     val v = a.asEthereumLikeAccount().buildTransaction()
                       .sendToAddress(c.convertAmount(0), contract)
