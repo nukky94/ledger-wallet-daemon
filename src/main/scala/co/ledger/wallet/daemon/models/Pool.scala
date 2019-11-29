@@ -270,7 +270,7 @@ object Pool {
     //    poolConfig.putString("BLOCKCHAIN_OBSERVER_WS_ENDPOINT", "ws://notification.explorers.dev.aws.ledger.fr:9000/ws/{}")
     //    poolConfig.putString("BLOCKCHAIN_OBSERVER_ENGINE", "LEDGER_API")
     core.WalletPoolBuilder.createInstance()
-      .setHttpClient(ClientFactory.httpClient)
+      .setHttpClient(ClientFactory.http4sClient)
       .setWebsocketClient(ClientFactory.webSocketClient)
       .setLogPrinter(new NoOpLogPrinter(ClientFactory.threadDispatcher.getMainExecutionContext, true))
       .setThreadDispatcher(ClientFactory.threadDispatcher)
