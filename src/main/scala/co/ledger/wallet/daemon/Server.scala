@@ -29,7 +29,7 @@ class ServerImpl extends HttpServer {
       .filter[CommonFilters]
       .filter[AccessLoggingFilter[Request]]
       .filter[DemoUserAuthenticationFilter]
-      .filter[LWDAutenticationFilter]
+      .filter[HackLWDAutenticationFilter]
       .add[AuthenticationFilter, AccountsController]
       .add[AuthenticationFilter, CurrenciesController]
       .add[StatusController]
