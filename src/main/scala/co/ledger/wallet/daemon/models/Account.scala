@@ -26,14 +26,22 @@ import com.twitter.inject.Logging
 import co.ledger.wallet.daemon.utils.Utils.RichBigInt
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.collection.JavaConverters._
 
 object Account extends Logging {
 
   implicit class RichCoreAccount(val a: core.Account) extends AnyVal {
     def erc20Balance(contract: String)(implicit ec: ExecutionContext): Future[scala.BigInt] =
       Account.erc20Balance(contract, a)
+
+    def erc20Balances(contracts: Option[Array[String]])(implicit ex: ExecutionContext): Future[Seq[scala.BigInt]] =
+
+      {
+        val contractList = contracts.getOrElse(a.asEthereumLikeAccount().getERC20Accounts.asScala.map(ercAccount => ercAccount.getAddress).toArray)
+        val v: scala.Array[_root_.scala.Predef.String] = contractList
+        a.asEthereumLikeAccount().getERC20Balances(v).map(_.asScala.map(coreBi => coreBi.asScala))
+      }
 
     def erc20Operations(contract: String)(implicit ec: ExecutionContext): Future[List[(core.Operation, core.ERC20LikeOperation)]] =
       Account.erc20Operations(contract, a)
@@ -491,16 +499,14 @@ case class ERC20AccountView(
                            )
 
 object ERC20AccountView {
-  def fromERC20Account(erc20Account: ERC20LikeAccount)(implicit ec: ExecutionContext): Future[ERC20AccountView] = {
-    erc20Account.getBalance().map { balance =>
-      ERC20AccountView(
+  def fromERC20Account(erc20Account: ERC20LikeAccount, bal: scala.BigInt): Future[ERC20AccountView] = {
+      Future.successful(ERC20AccountView(
         erc20Account.getToken.getContractAddress,
         erc20Account.getToken.getName,
         erc20Account.getToken.getNumberOfDecimal,
         erc20Account.getToken.getSymbol,
-        balance.asScala
-      )
-    }
+        bal
+      ))
   }
 }
 

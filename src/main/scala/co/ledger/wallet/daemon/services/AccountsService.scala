@@ -188,7 +188,8 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
     daemonCache.withAccount(accountInfo) { account =>
       for {
         erc20Accounts <- account.erc20Accounts.liftTo[Future]
-        views <- erc20Accounts.map(ERC20AccountView.fromERC20Account).sequence
+        erc20Balances <- account.erc20Balances(Some(erc20Accounts.map(acc => acc.getAddress).toArray))
+        views <- erc20Accounts.zip(erc20Balances).map(v => ERC20AccountView.fromERC20Account(v._1, v._2)).sequence
       } yield views
     }
 
@@ -196,7 +197,8 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
     daemonCache.withAccount(tokenAccountInfo.accountInfo) { account =>
       for {
         erc20Account <- account.erc20Account(tokenAccountInfo.tokenAddress).liftTo[Future]
-        view <- ERC20AccountView.fromERC20Account(erc20Account)
+        balance <- account.erc20Balance(tokenAccountInfo.tokenAddress)
+        view <- ERC20AccountView.fromERC20Account(erc20Account, balance)
       } yield view
     }
 
