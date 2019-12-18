@@ -7,7 +7,7 @@ import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.gl
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.exceptions._
 import co.ledger.wallet.daemon.models.Account._
-import co.ledger.wallet.daemon.models.Operations.PackedOperationsView
+import co.ledger.wallet.daemon.models.Operations.{PackedOperationsView, SeqOperationsView}
 import co.ledger.wallet.daemon.models._
 import co.ledger.wallet.daemon.schedulers.observers.{NewOperationEventReceiver, SynchronizationResult}
 import co.ledger.wallet.daemon.services.LogMsgMaker
@@ -103,6 +103,16 @@ class DefaultDaemonCache() extends DaemonCache with Logging {
           operationRecord = opsCache.insertOperation(UUID.randomUUID(), pool.id, accountInfo.walletName, accountInfo.accountIndex, offset, batch, next, previous)
           opsView <- Future.sequence(ops.map { op => Operations.getView(op, wallet, account) })
         } yield PackedOperationsView(operationRecord.previous, operationRecord.next, opsView)
+    }
+  }
+
+  def getAccountOperations(offset: Int, batch: Int, fullOp: Int, accountInfo: AccountInfo): Future[SeqOperationsView] = {
+    withAccountAndWallet(accountInfo) {
+      case (account, wallet) =>
+        for {
+          ops <- account.operations(offset, batch, fullOp)
+          opsView <- Future.sequence(ops.map { op => Operations.getView(op, wallet, account) })
+        } yield SeqOperationsView(opsView)
     }
   }
 }

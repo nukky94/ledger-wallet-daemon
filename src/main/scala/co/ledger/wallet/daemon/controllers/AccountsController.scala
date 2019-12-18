@@ -106,6 +106,17 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
         }
       }
 
+      // End point queries for operation views with specified pool, wallet name, and unique account index.
+      get("/operations") { request: BatchedOperationsRequest =>
+        info(s"GET account operations $request")
+        request.contract match {
+          case Some(contract) =>
+            accountsService.getBatchedERC20Operations(TokenAccountInfo(contract, request.accountInfo), request.offset, request.limit)
+          case None =>
+            accountsService.batchedAccountOperations(request.offset, request.limit, request.full_op, request.accountInfo)
+        }
+      }
+
       // End point queries for account balance
       get("/balance") { request: BalanceRequest =>
         info(s"GET account balance $request")
@@ -187,7 +198,7 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
 
 object AccountsController {
   private val DEFAULT_BATCH: Int = 20
-  private val DEFAULT_OFFSET: Long = 0
+  private val DEFAULT_OFFSET: Int = 0
   private val DEFAULT_OPERATION_MODE: Int = 0
 
 
@@ -306,10 +317,25 @@ object AccountsController {
                                 @QueryParam contract: Option[String],
                                 request: Request
                               ) extends BaseSingleAccountRequest {
-
     @MethodValidation
     def validateBatch: ValidationResult = ValidationResult.validate(batch > 0, "batch: batch should be greater than zero")
+  }
 
+  case class BatchedOperationsRequest(
+                                       @RouteParam override val pool_name: String,
+                                       @RouteParam override val wallet_name: String,
+                                       @RouteParam override val account_index: Int,
+                                       @QueryParam offset: Int = DEFAULT_OFFSET,
+                                       @QueryParam limit: Int = DEFAULT_BATCH,
+                                       @QueryParam full_op: Int = DEFAULT_OPERATION_MODE,
+                                       @QueryParam contract: Option[String],
+                                       request: Request
+                                     ) extends BaseSingleAccountRequest {
+    @MethodValidation
+    def validateLimit: ValidationResult = ValidationResult.validate(limit > 0, "limit: limit should be greater than zero")
+
+    @MethodValidation
+    def validateOffset: ValidationResult = ValidationResult.validate(offset > 0, "offset: offset should be greater than zero")
   }
 
   case class BalanceRequest(

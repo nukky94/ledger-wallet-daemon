@@ -6,7 +6,7 @@ import co.ledger.core.{Account, Currency, Wallet}
 import co.ledger.wallet.daemon.database.DefaultDaemonCache.User
 import co.ledger.wallet.daemon.exceptions.{AccountNotFoundException, UserNotFoundException, WalletNotFoundException, WalletPoolNotFoundException}
 import co.ledger.wallet.daemon.models.Account._
-import co.ledger.wallet.daemon.models.Operations.PackedOperationsView
+import co.ledger.wallet.daemon.models.Operations.{PackedOperationsView, SeqOperationsView}
 import co.ledger.wallet.daemon.models.Wallet._
 import co.ledger.wallet.daemon.models._
 
@@ -45,8 +45,10 @@ trait DaemonCache {
 
   def getAccountOperations(batch: Int, fullOp: Int, accountInfo: AccountInfo): Future[PackedOperationsView]
 
+  def getAccountOperations(offset: Int, batch: Int, fullOp: Int, accountInfo: AccountInfo): Future[SeqOperationsView]
 
-  def getNextBatchAccountOperations(next: UUID, fullOp: Int, accountInfo: AccountInfo): Future[PackedOperationsView]
+
+    def getNextBatchAccountOperations(next: UUID, fullOp: Int, accountInfo: AccountInfo): Future[PackedOperationsView]
 
   def getPreviousBatchAccountOperations(previous: UUID,
                                         fullOp: Int, accountInfo: AccountInfo): Future[PackedOperationsView]

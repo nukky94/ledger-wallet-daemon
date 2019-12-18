@@ -109,4 +109,7 @@ object Operations {
                                    @JsonProperty("next") next: Option[UUID],
                                    @JsonProperty("operations") operations: Seq[OperationView]
                                  )
+  case class SeqOperationsView(
+                                @JsonProperty("operations") operations: Seq[OperationView]
+                              )
 }

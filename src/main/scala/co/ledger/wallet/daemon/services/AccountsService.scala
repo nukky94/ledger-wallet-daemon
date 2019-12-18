@@ -16,7 +16,7 @@ import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.database.DaemonCache
 import co.ledger.wallet.daemon.models.Account._
 import co.ledger.wallet.daemon.models.Currency._
-import co.ledger.wallet.daemon.models.Operations.{OperationView, PackedOperationsView}
+import co.ledger.wallet.daemon.models.Operations.{OperationView, PackedOperationsView, SeqOperationsView}
 import co.ledger.wallet.daemon.models.Wallet._
 import co.ledger.wallet.daemon.models._
 import co.ledger.wallet.daemon.schedulers.observers.SynchronizationResult
@@ -237,6 +237,9 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
         daemonCache.getAccountOperations(queryParams.batch, queryParams.fullOp, accountInfo)
     }
   }
+   def batchedAccountOperations(offset: Int, limit: Int, fullOp: Int, accountInfo: AccountInfo): Future[SeqOperationsView] =
+     daemonCache.getAccountOperations(offset, limit, fullOp, accountInfo)
+
 
   def firstOperation(accountInfo: AccountInfo): Future[Option[OperationView]] = {
     daemonCache.withAccountAndWallet(accountInfo) {
