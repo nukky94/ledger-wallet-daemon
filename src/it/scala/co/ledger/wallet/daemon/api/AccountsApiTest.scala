@@ -9,10 +9,9 @@ import co.ledger.wallet.daemon.services.OperationQueryParams
 import co.ledger.wallet.daemon.utils.APIFeatureTest
 import com.fasterxml.jackson.databind.JsonNode
 import com.twitter.finagle.http.{Response, Status}
-import scala.collection.JavaConverters._
 
-import collection.mutable._
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import scala.collection.JavaConverters._
+import scala.collection.mutable._
 
 class AccountsApiTest extends APIFeatureTest {
 

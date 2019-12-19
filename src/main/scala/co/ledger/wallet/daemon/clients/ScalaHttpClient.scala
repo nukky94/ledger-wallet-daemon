@@ -4,7 +4,7 @@ import java.io.{BufferedInputStream, DataOutputStream}
 import java.net.{HttpURLConnection, InetSocketAddress, URL}
 import java.util
 
-import co.ledger.core.{ErrorCode, HttpMethod, HttpReadBodyResult, HttpRequest, HttpUrlConnection}
+import co.ledger.core._
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
 import com.twitter.inject.Logging
@@ -29,10 +29,12 @@ class ScalaHttpClient(implicit val ec: ExecutionContext) extends co.ledger.core.
     }
     connection.setRequestMethod(resolveMethod(request.getMethod))
     for ((key, value) <- request.getHeaders.asScala) {
-       connection.setRequestProperty(key, value)
+      connection.setRequestProperty(key, value)
     }
+
+    connection.setRequestProperty("User-Agent", "ledger-lib-core")
     connection.setRequestProperty("Content-Type", "application/json")
-    info(s"${request.getMethod} ${request.getUrl}")
+
     val body = request.getBody
     if (body.nonEmpty) {
       connection.setDoOutput(true)
@@ -44,6 +46,7 @@ class ScalaHttpClient(implicit val ec: ExecutionContext) extends co.ledger.core.
     val statusCode = connection.getResponseCode
     val statusText = connection.getResponseMessage
     val isError = !(statusCode >= 200 && statusCode < 400)
+    info(s"Received from ${request.getUrl} status=$statusCode error=$isError - statusText=$statusText")
     val response =
       new BufferedInputStream(if (!isError) connection.getInputStream else connection.getErrorStream)
     val headers = new util.HashMap[String, String]()
@@ -72,7 +75,7 @@ class ScalaHttpClient(implicit val ec: ExecutionContext) extends co.ledger.core.
             }
           } while (size > 0)
           val data = outputStream.getBytes
-          if (isError) info(s"Received error ${new String(data)}")
+          if (isError) info(s"Received ${new String(data)}")
           new HttpReadBodyResult(null, data)
         } catch {
           case t: Throwable =>
@@ -100,5 +103,5 @@ class ScalaHttpClient(implicit val ec: ExecutionContext) extends co.ledger.core.
 }
 
 object ScalaHttpClient {
-  val PROXY_BUFFER_SIZE: Int = 4*4096
+  val PROXY_BUFFER_SIZE: Int = 4 * 4096
 }
