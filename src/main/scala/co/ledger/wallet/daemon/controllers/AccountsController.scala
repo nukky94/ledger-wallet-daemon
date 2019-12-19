@@ -4,6 +4,7 @@ import java.util.{Date, UUID}
 
 import co.ledger.core.{OperationType, TimePeriod}
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
+import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.controllers.requests.CommonMethodValidations.DATE_FORMATTER
 import co.ledger.wallet.daemon.controllers.requests._
 import co.ledger.wallet.daemon.controllers.responses.ResponseSerializer
@@ -102,18 +103,11 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
           case Some(contract) =>
             accountsService.getBatchedERC20Operations(TokenAccountInfo(contract, request.accountInfo), request.offset, request.batch)
           case None =>
-            accountsService.accountOperations(OperationQueryParams(request.previous, request.next, request.batch, request.full_op), request.accountInfo)
-        }
-      }
-
-      // End point queries for operation views with specified pool, wallet name, and unique account index.
-      get("/operations") { request: BatchedOperationsRequest =>
-        info(s"GET account operations $request")
-        request.contract match {
-          case Some(contract) =>
-            accountsService.getBatchedERC20Operations(TokenAccountInfo(contract, request.accountInfo), request.offset, request.limit)
-          case None =>
-            accountsService.batchedAccountOperations(request.offset, request.limit, request.full_op, request.accountInfo)
+            if (request.pagination) {
+              accountsService.getBatchedAccountOperations(request.offset, request.batch, request.full_op, request.accountInfo)
+            } else {
+              accountsService.accountOperations(OperationQueryParams(request.previous, request.next, request.batch, request.full_op), request.accountInfo)
+            }
         }
       }
 
@@ -197,7 +191,7 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
 }
 
 object AccountsController {
-  private val DEFAULT_BATCH: Int = 20
+  private val DEFAULT_BATCH: Int = DaemonConfiguration.paginationOperationsLimit
   private val DEFAULT_OFFSET: Int = 0
   private val DEFAULT_OPERATION_MODE: Int = 0
 
@@ -309,9 +303,10 @@ object AccountsController {
                                 @RouteParam override val pool_name: String,
                                 @RouteParam override val wallet_name: String,
                                 @RouteParam override val account_index: Int,
-                                @QueryParam next: Option[UUID],
-                                @QueryParam previous: Option[UUID],
-                                @QueryParam offset: Long = DEFAULT_OFFSET,
+                                @QueryParam pagination: Boolean = false,// see BACK-354 : will be removed when next and previous will
+                                @QueryParam next: Option[UUID],         // Deprecated
+                                @QueryParam previous: Option[UUID],     // Deprecated
+                                @QueryParam offset: Int = DEFAULT_OFFSET,
                                 @QueryParam batch: Int = DEFAULT_BATCH,
                                 @QueryParam full_op: Int = DEFAULT_OPERATION_MODE,
                                 @QueryParam contract: Option[String],
@@ -319,23 +314,9 @@ object AccountsController {
                               ) extends BaseSingleAccountRequest {
     @MethodValidation
     def validateBatch: ValidationResult = ValidationResult.validate(batch > 0, "batch: batch should be greater than zero")
-  }
-
-  case class BatchedOperationsRequest(
-                                       @RouteParam override val pool_name: String,
-                                       @RouteParam override val wallet_name: String,
-                                       @RouteParam override val account_index: Int,
-                                       @QueryParam offset: Int = DEFAULT_OFFSET,
-                                       @QueryParam limit: Int = DEFAULT_BATCH,
-                                       @QueryParam full_op: Int = DEFAULT_OPERATION_MODE,
-                                       @QueryParam contract: Option[String],
-                                       request: Request
-                                     ) extends BaseSingleAccountRequest {
-    @MethodValidation
-    def validateLimit: ValidationResult = ValidationResult.validate(limit > 0, "limit: limit should be greater than zero")
 
     @MethodValidation
-    def validateOffset: ValidationResult = ValidationResult.validate(offset > 0, "offset: offset should be greater than zero")
+    def validateOffset: ValidationResult = ValidationResult.validate(offset >= 0, "offset: offset should be greater or equals zero")
   }
 
   case class BalanceRequest(

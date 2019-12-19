@@ -92,8 +92,13 @@ object DaemonConfiguration {
 
   // The maximum size of pagination token cache
   val paginationTokenMaxSize: Long =
-    if (config.hasPath("pagination_token.ttl_min")) { config.getInt("pagination_token.max_size") }
+    if (config.hasPath("pagination_token.max_size")) { config.getInt("pagination_token.max_size") }
     else { 1000 * 1000 }
+
+  // The default limit to use when it is not specified
+  val paginationOperationsLimit: Int =
+    if (config.hasPath("operations.pagination.limit")) { config.getInt("operations.pagination.limit") }
+    else { 10 }
 
   // The expire time in minutes of the balance per account
   val balanceCacheTtlMin: Int =

@@ -237,7 +237,7 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
         daemonCache.getAccountOperations(queryParams.batch, queryParams.fullOp, accountInfo)
     }
   }
-   def batchedAccountOperations(offset: Int, limit: Int, fullOp: Int, accountInfo: AccountInfo): Future[SeqOperationsView] =
+   def getBatchedAccountOperations(offset: Int, limit: Int, fullOp: Int, accountInfo: AccountInfo): Future[SeqOperationsView] =
      daemonCache.getAccountOperations(offset, limit, fullOp, accountInfo)
 
 
