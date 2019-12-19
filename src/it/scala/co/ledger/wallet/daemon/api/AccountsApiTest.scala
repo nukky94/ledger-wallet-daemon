@@ -3,11 +3,16 @@ package co.ledger.wallet.daemon.api
 import java.util.UUID
 
 import co.ledger.core.TimePeriod
+import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.models.{AccountDerivationView, AccountView, FreshAddressView}
 import co.ledger.wallet.daemon.services.OperationQueryParams
 import co.ledger.wallet.daemon.utils.APIFeatureTest
-// import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.JsonNode
 import com.twitter.finagle.http.{Response, Status}
+import scala.collection.JavaConverters._
+
+import collection.mutable._
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 class AccountsApiTest extends APIFeatureTest {
 
@@ -130,8 +135,6 @@ class AccountsApiTest extends APIFeatureTest {
     deletePool("account_pool")
   }
 
-  // FIXME: Broken test
-  /*
   test("AccountsApi#Get account operations") {
 
     def getUUID(field: String, content: Map[String, JsonNode]): Option[UUID] = {
@@ -145,7 +148,7 @@ class AccountsApiTest extends APIFeatureTest {
     assertSyncPool(Status.Ok)
     assertGetAccountOp("op_pool", "op_wallet", 0, "noexistop", 0, Status.NotFound)
     assertGetAccountOp("op_pool", "op_wallet", 0, "bcbe563a94e70a6fe0a190d6578f5440615eb64bbd6c49b2a6b77eb9ba01963a", 0, Status.Ok)
-    val response = assertGetFirstOperation(0,"op_pool", "op_wallet", Status.Ok).contentString
+    val response = assertGetFirstOperation(0, "op_pool", "op_wallet", Status.Ok).contentString
     assert(response.contains("ed977add08cfc6cd158e65150bcd646d7a52b60f84e15e424b617d5511aaed21"))
 
 
@@ -167,6 +170,51 @@ class AccountsApiTest extends APIFeatureTest {
     deletePool("op_pool")
   }
 
+  test("AccountsApi#Get account batched operations") {
+    val poolName = "batched_op_pool"
+    val walletName = "bop_wallet"
+    createPool(poolName)
+    assertWalletCreation(poolName, walletName, "bitcoin", Status.Ok)
+    assertCreateAccount(CORRECT_BODY, poolName, walletName, Status.Ok)
+    assertSyncPool(Status.Ok)
+    assertGetAccountOp(poolName, walletName, 0, "noexistop", 0, Status.NotFound)
+
+    // Check configuration limit is taken when no limit are provided
+    val opsAsJson_default = parse[Map[String, JsonNode]](assertGetBatchedAccountOps(poolName, walletName, 0, None, None, None, Status.Ok))
+    val ops_default = opsAsJson_default("operations")
+    assert(ops_default.size() == DaemonConfiguration.paginationOperationsLimit)
+
+    val opsAsJson_all = parse[Map[String, JsonNode]](assertGetBatchedAccountOps(poolName, walletName, 0, Some(0), Some(10), None, Status.Ok))
+    val ops_all = opsAsJson_all("operations").findValuesAsText("uid").asScala
+    // no duplicates
+    assert(ops_all.distinct.size == ops_all.size)
+    assert(ops_all.size == 10, s"Retrieved batch size : ${ops_all.size}")
+
+    val opsAsJson_b1 = parse[Map[String, JsonNode]](assertGetBatchedAccountOps(poolName, walletName, 0, Some(0), Some(2), None, Status.Ok))
+    val ops_b1 = opsAsJson_b1("operations").findValuesAsText("uid").asScala
+    assert(ops_b1.distinct.size == ops_b1.size)
+    assert(ops_b1.size == 2, s"Retrieved batch size : ${ops_b1.size}")
+
+    val opsAsJson_b2 = parse[Map[String, JsonNode]](assertGetBatchedAccountOps(poolName, walletName, 0, Some(2), Some(3), None, Status.Ok))
+    val ops_b2 = opsAsJson_b2("operations").findValuesAsText("uid").asScala
+    assert(ops_b2.distinct.size == ops_b2.size)
+    assert(ops_b2.size == 3)
+
+    val opsAsJson_b3 = parse[Map[String, JsonNode]](assertGetBatchedAccountOps(poolName, walletName, 0, Some(5), Some(5), None, Status.Ok))
+    val ops_b3 = opsAsJson_b3("operations").findValuesAsText("uid").asScala
+    assert(ops_b3.distinct.size == ops_b3.size)
+    assert(ops_b3.size == 5)
+
+
+    val ops_allBatched = ops_b1 ++ ops_b2 ++ ops_b3
+    // intersect is empty between ops_bxs
+    assert(ops_allBatched.distinct.size == ops_allBatched.size)
+    assert(ops_allBatched.size == ops_all.size)
+    // All batches are exactly equivalent to the first one
+    assert((ops_allBatched ++ ops_all).distinct.size == ops_all.size)
+    deletePool(poolName)
+  }
+
   private def assertGetAccountOp(poolName: String, walletName: String, accountIndex: Int, uid: String, fullOp: Int, expected: Status): Response = {
     val sb = new StringBuilder(s"/pools/$poolName/wallets/$walletName/accounts/$accountIndex/operations/$uid?full_op=$fullOp")
     server.httpGet(sb.toString(), headers = defaultHeaders, andExpect = expected)
@@ -175,7 +223,6 @@ class AccountsApiTest extends APIFeatureTest {
   private def assertGetFirstOperation(index: Int, poolName: String, walletName: String, expected: Status): Response = {
     server.httpGet(s"/pools/$poolName/wallets/$walletName/accounts/$index/operations/first", headers = defaultHeaders, andExpect = expected)
   }
-  */
 
   test("AccountsApi#Pool not exist") {
     createPool("op_pool_mal")
@@ -203,6 +250,21 @@ class AccountsApiTest extends APIFeatureTest {
       sb.append("next=" + n.toString + "&")
     }
     sb.append(s"batch=${params.batch}&full_op=${params.fullOp}")
+    server.httpGet(sb.toString(), headers = defaultHeaders, andExpect = expected)
+  }
+
+  private def assertGetBatchedAccountOps(poolName: String, walletName: String, accountIndex: Int, offset: Option[Int], limit: Option[Int],
+                                         fullOp: Option[Int], expected: Status): Response = {
+    val sb = new StringBuilder(s"/pools/$poolName/wallets/$walletName/accounts/$accountIndex/operations?pagination=true&")
+    offset.map { p =>
+      sb.append("offset=" + p.toString + "&")
+    }
+    limit.map { p =>
+      sb.append("batch=" + p.toString + "&")
+    }
+    fullOp.map { p =>
+      sb.append("full_op=" + p.toString + "&")
+    }
     server.httpGet(sb.toString(), headers = defaultHeaders, andExpect = expected)
   }
 
