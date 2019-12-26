@@ -17,62 +17,87 @@ class DaemonExceptionMapper @Inject()(response: ResponseBuilder)
   override def toResponse(request: Request, throwable: DaemonException): Response = {
     throwable match {
       case anfe: AccountNotFoundException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(anfe) + ("account_index" -> anfe.accountIndex),
           response)
       case e: OperationNotFoundException =>
         val next = request.getParam("next")
         val previous = request.getParam("previous")
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(e) + ("next_cursor" -> next, "previous_cursor" -> previous),
           response)
       case wnfe: WalletNotFoundException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(wnfe) + ("wallet_name" -> wnfe.walletName),
           response)
       case wpnfe: WalletPoolNotFoundException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(wpnfe) + ("pool_name" -> wpnfe.poolName),
           response)
       case wpaee: WalletPoolAlreadyExistException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(wpaee) + ("pool_name" -> wpaee.poolName),
           response)
       case cnfe: CurrencyNotFoundException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(cnfe) + ("currency_name" -> cnfe.currencyName),
           response)
       case cnfe: CurrencyNotSupportedException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(cnfe) + ("currency_name" -> cnfe.currencyName),
           response)
       case unfe: UserNotFoundException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(unfe) + ("pub_key" -> unfe.pubKey),
           response)
       case uaee: UserAlreadyExistException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(uaee) + ("pub_key" -> uaee.pubKey),
           response)
       case iae: CoreBadRequestException =>
         val walletName = request.getParam("wallet_name")
         val poolName = request.getParam("pool_name")
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(iae) + ("pool_name" -> poolName, "wallet_name" -> walletName),
           response)
       case ssnme: SignatureSizeUnmatchException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(ssnme) + ("tx_size" -> ssnme.txSize, "sig_size" -> ssnme.signatureSize),
           response
         )
       case enfe: ERC20NotFoundException =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(enfe) + ("contract" -> enfe.contract),
           response
         )
       case e: ERC20BalanceNotEnough =>
-        ResponseSerializer.serializeBadRequest(
+        ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(e) + ("contract" -> e.tokenAddress),
+          response
+        )
+      case e: AccountSyncException =>
+        ResponseSerializer.serializeBadRequest(request,
+          daemonExceptionInfo(e),
+          response
+        )
+      case e: DaemonDatabaseException =>
+        ResponseSerializer.serializeBadRequest(request,
+          daemonExceptionInfo(e),
+          response
+        )
+      case e: InvalidCurrencyForErc20Operation =>
+        ResponseSerializer.serializeBadRequest(request,
+          daemonExceptionInfo(e),
+          response
+        )
+      case e: InvalidEIP55Format =>
+        ResponseSerializer.serializeBadRequest(request,
+          daemonExceptionInfo(e),
+          response
+        )
+      case e: SyncOnGoingException =>
+        ResponseSerializer.serializeBadRequest(request,
+          daemonExceptionInfo(e),
           response
         )
     }

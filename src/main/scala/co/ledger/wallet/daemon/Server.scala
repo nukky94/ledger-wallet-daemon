@@ -23,11 +23,11 @@ class ServerImpl extends HttpServer {
 
   override protected def configureHttp(router: HttpRouter): Unit =
     router
+      .filter[AccessLoggingFilter[Request]]
       .filter[LoggingMDCFilter[Request, Response]]
       .filter[TraceIdMDCFilter[Request, Response]]
       .filter[CorrelationIdFilter[Request, Response]]
       .filter[CommonFilters]
-      .filter[AccessLoggingFilter[Request]]
       .filter[DemoUserAuthenticationFilter]
       .filter[LWDAutenticationFilter]
       .add[AuthenticationFilter, AccountsController]
@@ -44,7 +44,7 @@ class ServerImpl extends HttpServer {
   override protected def configureHttpServer(server: Http.Server): Http.Server = {
     server
       .withSession.maxIdleTime(Duration.fromSeconds(10))
-      .withSession.maxLifeTime(Duration.fromSeconds(300))
+      .withSession.maxLifeTime(Duration.fromMinutes(10))
   }
 
   override protected def warmup(): Unit = {

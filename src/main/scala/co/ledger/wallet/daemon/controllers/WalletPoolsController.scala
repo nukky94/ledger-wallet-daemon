@@ -3,6 +3,9 @@ package co.ledger.wallet.daemon.controllers
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.controllers.requests.{CommonMethodValidations, RequestWithUser, WithPoolInfo}
 import co.ledger.wallet.daemon.controllers.responses.ResponseSerializer
+import co.ledger.wallet.daemon.exceptions.AccountSyncException
+import co.ledger.wallet.daemon.filters.DeprecatedRouteFilter
+import co.ledger.wallet.daemon.schedulers.observers.SynchronizationResult
 import co.ledger.wallet.daemon.services.AuthenticationService.AuthentifiedUserContext._
 import co.ledger.wallet.daemon.services.PoolsService
 import co.ledger.wallet.daemon.services.PoolsService.PoolConfiguration
@@ -12,6 +15,8 @@ import com.twitter.finatra.http.Controller
 import com.twitter.finatra.request.RouteParam
 import com.twitter.finatra.validation.{MethodValidation, NotEmpty, ValidationResult}
 import javax.inject.Inject
+
+import scala.util.{Failure, Success}
 
 class WalletPoolsController @Inject()(poolsService: PoolsService) extends Controller {
 
@@ -34,8 +39,8 @@ class WalletPoolsController @Inject()(poolsService: PoolsService) extends Contro
   get("/pools/:pool_name") { request: PoolRouteRequest =>
     info(s"GET wallet pool $request")
     poolsService.pool(request.poolInfo).map {
-      case Some(view) => ResponseSerializer.serializeOk(view, response)
-      case None => ResponseSerializer.serializeNotFound(
+      case Some(view) => ResponseSerializer.serializeOk(view, request.request, response)
+      case None => ResponseSerializer.serializeNotFound(request.request,
         Map("response" -> "Wallet pool doesn't exist", "pool_name" -> request.pool_name), response)
     }
   }
@@ -44,21 +49,26 @@ class WalletPoolsController @Inject()(poolsService: PoolsService) extends Contro
     * End point to trigger the synchronization process of existing wallet pools of user.
     *
     */
-  post("/pools/operations/synchronize") { request: Request =>
+  filter[DeprecatedRouteFilter].post("/pools/operations/synchronize") { request: Request => {
     info(s"SYNC wallet pools $request, Parameters(user: ${request.user.get.id})")
     val t0 = System.currentTimeMillis()
     poolsService.syncOperations.map { result =>
       val t1 = System.currentTimeMillis()
       info(s"Synchronization finished, elapsed time: ${t1 - t0} milliseconds")
-      result
+      result.collect{
+        case Success(value) => value
+        case Failure(t: AccountSyncException) =>
+          SynchronizationResult(t.accountIndex, t.walletName, t.poolName, syncResult = false)
+      }
     }
+  }
   }
 
   /**
     * End point to trigger the synchronization process of one existing wallet pool
     *
     */
-  post("/pools/:pool_name/operations/synchronize") { request: PoolRouteRequest =>
+  filter[DeprecatedRouteFilter].post("/pools/:pool_name/operations/synchronize") { request: PoolRouteRequest =>
     poolsService.syncOperations(request.poolInfo)
   }
 
@@ -99,7 +109,7 @@ object WalletPoolsController {
 
   case class PoolRouteRequest(
                                @RouteParam pool_name: String,
-                               request: Request) extends RequestWithUser with WithPoolInfo{
+                               request: Request) extends RequestWithUser with WithPoolInfo {
     @MethodValidation
     def validatePoolName: ValidationResult = CommonMethodValidations.validateName("pool_name", pool_name)
 

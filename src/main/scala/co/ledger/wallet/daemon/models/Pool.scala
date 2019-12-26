@@ -27,7 +27,7 @@ import scala.concurrent.Future
 class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
   private[this] val self = this
 
-  private val _coreExecutionContext = LedgerCoreExecutionContext.newThreadPool()
+  private val _coreExecutionContext = LedgerCoreExecutionContext.operationPool
   private[this] val eventReceivers: mutable.Set[core.EventReceiver] = Utils.newConcurrentSet[core.EventReceiver]
 
   val name: String = coreP.getName

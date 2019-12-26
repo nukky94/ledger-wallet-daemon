@@ -3,6 +3,7 @@ package co.ledger.wallet.daemon.controllers
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.controllers.requests.{CommonMethodValidations, RequestWithUser, WithPoolInfo}
 import co.ledger.wallet.daemon.controllers.responses.ResponseSerializer
+import co.ledger.wallet.daemon.filters.DeprecatedRouteFilter
 import co.ledger.wallet.daemon.services.CurrenciesService
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.Controller
@@ -20,12 +21,12 @@ class CurrenciesController @Inject()(currenciesService: CurrenciesService) exten
     * Name should be lowercase and predefined by core library.
     *
     */
-  get("/pools/:pool_name/currencies/:currency_name") { request: GetCurrencyRequest =>
+  filter[DeprecatedRouteFilter].get("/pools/:pool_name/currencies/:currency_name") { request: GetCurrencyRequest =>
     val currencyName = request.currency_name
     info(s"GET currency $request")
     currenciesService.currency(currencyName, request.poolInfo).map {
-      case Some(currency) => ResponseSerializer.serializeOk(currency, response)
-      case None => ResponseSerializer.serializeNotFound(
+      case Some(currency) => ResponseSerializer.serializeOk(currency, request.request, response)
+      case None => ResponseSerializer.serializeNotFound(request.request,
         Map("response" -> "Currency not support", "currency_name" -> currencyName), response)
     }
   }
@@ -47,7 +48,6 @@ class CurrenciesController @Inject()(currenciesService: CurrenciesService) exten
   get("/pools/:pool_name/currencies/:currency_name/validate") { request: AddressValidatingRequest =>
     currenciesService.validateAddress(request.address, request.currency_name, request.poolInfo)
   }
-
 }
 
 object CurrenciesController {

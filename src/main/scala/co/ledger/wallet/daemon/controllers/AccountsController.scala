@@ -10,7 +10,7 @@ import co.ledger.wallet.daemon.controllers.responses.ResponseSerializer
 import co.ledger.wallet.daemon.exceptions._
 import co.ledger.wallet.daemon.filters.AccountCreationContext._
 import co.ledger.wallet.daemon.filters.ExtendedAccountCreationContext._
-import co.ledger.wallet.daemon.filters.{AccountCreationFilter, AccountExtendedCreationFilter}
+import co.ledger.wallet.daemon.filters.{AccountCreationFilter, AccountExtendedCreationFilter, DeprecatedRouteFilter}
 import co.ledger.wallet.daemon.models.Account._
 import co.ledger.wallet.daemon.models.TokenAccountInfo
 import co.ledger.wallet.daemon.services.{AccountsService, OperationQueryParams}
@@ -35,13 +35,13 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
     }
 
     // End point queries for derivation information view of next account creation.
-    get("/accounts/next") { request: AccountCreationInfoRequest =>
+    filter[DeprecatedRouteFilter].get("/accounts/next") { request: AccountCreationInfoRequest =>
       info(s"GET account creation info $request")
       accountsService.nextAccountCreationInfo(request.account_index, request.walletInfo)
     }
 
     // End point to create a new account within the specified pool and wallet.
-    filter[AccountCreationFilter]
+    filter[DeprecatedRouteFilter].filter[AccountCreationFilter]
       .post("/accounts") { request: AccountsRequest =>
         info(s"CREATE account $request, " +
           s"Parameters(user: ${request.user.id}, pool_name: ${request.pool_name}, wallet_name: ${request.wallet_name}), " +
@@ -50,7 +50,7 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
       }
 
     // End point to create a new account within the specified pool and wallet with extended keys info.
-    filter[AccountExtendedCreationFilter]
+    filter[DeprecatedRouteFilter].filter[AccountExtendedCreationFilter]
       .post("/accounts/extended") { request: AccountsRequest =>
         info(s"CREATE account ${request.request}, " +
           s"Parameters(user: ${request.user.id}, pool_name: ${request.pool_name}, wallet_name: ${request.wallet_name}), " +
@@ -59,26 +59,27 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
       }
 
     // End point queries for derivation information view of next account creation (with extended key).
-    get("/accounts/next_extended") { request: AccountCreationInfoRequest =>
+    filter[DeprecatedRouteFilter].get("/accounts/next_extended") { request: AccountCreationInfoRequest =>
       info(s"GET account creation info $request")
       accountsService.nextExtendedAccountCreationInfo(request.account_index, request.walletInfo)
     }
 
-    get("/accounts/:account_index") { request: AccountRequest =>
+    filter[DeprecatedRouteFilter].get("/accounts/:account_index") { request: AccountRequest =>
       info(s"GET account $request")
       accountsService.account(request.accountInfo).map {
-        case Some(view) => ResponseSerializer.serializeOk(view, response)
-        case None => ResponseSerializer.serializeNotFound(Map("response" -> "Account doesn't exist", "account_index" -> request.account_index), response)
+        case Some(view) => ResponseSerializer.serializeOk(view, request.request, response)
+        case None => ResponseSerializer.serializeNotFound(request.request, Map("response" -> "Account doesn't exist", "account_index" -> request.account_index), response)
       }.recover {
-        case _: WalletPoolNotFoundException => ResponseSerializer.serializeBadRequest(
+        case _: WalletPoolNotFoundException => ResponseSerializer.serializeBadRequest(request.request,
           Map("response" -> "Wallet pool doesn't exist", "pool_name" -> request.pool_name),
           response)
-        case _: WalletNotFoundException => ResponseSerializer.serializeBadRequest(
+        case _: WalletNotFoundException => ResponseSerializer.serializeBadRequest(request.request,
           Map("response" -> "Wallet doesn't exist", "wallet_name" -> request.wallet_name),
           response)
-        case e: Throwable => ResponseSerializer.serializeInternalError(response, e)
+        case e: Throwable => ResponseSerializer.serializeInternalError(request.request, response, e)
       }
     }
+
     // End point queries for account view with specified pool, wallet name, and unique account index.
     prefix("/accounts/:account_index") {
 
@@ -88,9 +89,8 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
         accountsService.accountFreshAddresses(request.accountInfo)
       }
 
-
       // End point queries for derivation path with specified pool, wallet name and unique account index.
-      get("/path") { request: AccountRequest =>
+      filter[DeprecatedRouteFilter].get("/path") { request: AccountRequest =>
         info(s"GET account derivation path $request")
         accountsService.accountDerivationPath(request.accountInfo)
       }
@@ -119,18 +119,18 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
       }
 
       // End point queries for operation view with specified uid, return the first operation of this account if uid is 'first'.
-      get("/operations/:uid") { request: OperationRequest =>
+      filter[DeprecatedRouteFilter].get("/operations/:uid") { request: OperationRequest =>
         info(s"GET account operation $request")
         request.uid match {
           case "first" => accountsService.firstOperation(request.accountInfo)
             .map {
-              case Some(view) => ResponseSerializer.serializeOk(view, response)
-              case None => ResponseSerializer.serializeNotFound(Map("response" -> "Account is empty"), response)
+              case Some(view) => ResponseSerializer.serializeOk(view, request.request, response)
+              case None => ResponseSerializer.serializeNotFound(request.request, Map("response" -> "Account is empty"), response)
             }
           case _ => accountsService.accountOperation(request.uid, request.full_op, request.accountInfo)
             .map {
-              case Some(view) => ResponseSerializer.serializeOk(view, response)
-              case None => ResponseSerializer.serializeNotFound(Map("response" -> "Account operation doesn't exist", "uid" -> request.uid), response)
+              case Some(view) => ResponseSerializer.serializeOk(view, request.request, response)
+              case None => ResponseSerializer.serializeNotFound(request.request, Map("response" -> "Account operation doesn't exist", "uid" -> request.uid), response)
             }
         }
       }
@@ -157,12 +157,12 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
       }
 
       // operations of all tokens on this account
-      get("/tokens/operations") { request: AccountRequest =>
+      filter[DeprecatedRouteFilter].get("/tokens/operations") { request: AccountRequest =>
         accountsService.getERC20Operations(request.accountInfo)
       }
 
       // given token address, get the token on this account
-      get("/tokens/:token_address") { request: TokenAccountRequest =>
+      filter[DeprecatedRouteFilter].get("/tokens/:token_address") { request: TokenAccountRequest =>
         accountsService.getTokenAccount(request.tokenAccountInfo)
       }
 
@@ -174,7 +174,7 @@ class AccountsController @Inject()(accountsService: AccountsService) extends Con
           account <- accountOpt.map(Future.successful).getOrElse(Future.failed(AccountNotFoundException(request.account_index)))
           operationCounts <- account.ERC20operationsCounts(request.startDate, request.endDate, request.timePeriod, request.tokenAccountInfo.tokenAddress)
         } yield TokenHistoryResponse(balances, operationCounts)
-    }
+      }
 
       // given token address, get the operations on this token
       get("/tokens/:token_address/operations") { request: TokenAccountRequest =>
@@ -234,14 +234,14 @@ object AccountsController {
     def validateTimePeriod: ValidationResult = CommonMethodValidations.validateTimePeriod(timeInterval)
   }
 
-  case class TokenHistoryRequest (
-                            @RouteParam override val pool_name: String,
-                            @RouteParam override val wallet_name: String,
-                            @RouteParam override val account_index: Int,
-                            @RouteParam override val token_address: String,
-                            @QueryParam start: String, @QueryParam end: String, @QueryParam timeInterval: String,
-                            request: Request
-                            ) extends BaseSingleAccountRequest with WithTokenAccountInfo {
+  case class TokenHistoryRequest(
+                                  @RouteParam override val pool_name: String,
+                                  @RouteParam override val wallet_name: String,
+                                  @RouteParam override val account_index: Int,
+                                  @RouteParam override val token_address: String,
+                                  @QueryParam start: String, @QueryParam end: String, @QueryParam timeInterval: String,
+                                  request: Request
+                                ) extends BaseSingleAccountRequest with WithTokenAccountInfo {
     def timePeriod: TimePeriod = TimePeriod.valueOf(timeInterval)
 
     def startDate: Date = DATE_FORMATTER.parse(start)

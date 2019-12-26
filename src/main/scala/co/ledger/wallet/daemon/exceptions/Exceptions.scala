@@ -77,12 +77,22 @@ case class DaemonDatabaseException(msg: String, t: Throwable) extends DaemonExce
   def code: Int = ErrorCodes.DAEMON_DATABASE_EXCEPTION
 }
 
+case class AccountSyncException(poolName: String, walletName: String, accountIndex: Int, t: Throwable) extends {
+  val msg = s"Synchronization of Account $poolName:$walletName:$accountIndex failed"
+  val code = ErrorCodes.ACCOUNT_SYNC_FAILED
+} with DaemonException(msg, t)
+
+case class SyncOnGoingException() extends {
+  val msg = "Synchronization is on going ..."
+  val code = ErrorCodes.SYNC_ON_GOING
+} with DaemonException(msg)
+
 case class SignatureSizeUnmatchException(txSize: Int, signatureSize: Int) extends {
   val code = ErrorCodes.SIGNATURE_SIZE_UNMATCH
   val msg = "Signatures and transaction inputs size not matching"
 } with DaemonException(msg)
 
-abstract class DaemonException(msg: String, t: Throwable = null) extends Exception(msg, t) {
+sealed abstract class DaemonException(msg: String, t: Throwable = null) extends Exception(msg, t) {
   def code: Int
   def msg: String
 }
@@ -101,6 +111,8 @@ object ErrorCodes {
   val USER_ALREADY_EXIST = 208
   val CURRENCY_NOT_SUPPORTED = 209
   val INVALID_CURRENCY_FOR_ERC20 = 210
+  val ACCOUNT_SYNC_FAILED = 211
+  val SYNC_ON_GOING = 212
   val CORE_BAD_REQUEST = 301
   val DAEMON_DATABASE_EXCEPTION = 302
 }

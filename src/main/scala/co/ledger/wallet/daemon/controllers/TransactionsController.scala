@@ -24,6 +24,7 @@ class TransactionsController @Inject()(transactionsService: TransactionsService)
     * fees_level: optional(SLOW, FAST, NORMAL),
     * amount: in satoshi,
     * exclude_utxos: map{txHash: index}
+    * partial_tx: optional(boolean) - lightweight mode can be used in order to calculate fees, partial mode avoid costly calls to retrieve unnecessary UTXOs info
     * }
     *
     */
@@ -53,9 +54,7 @@ object TransactionsController {
   case class AccountInfoRequest(@RouteParam pool_name: String,
                                 @RouteParam wallet_name: String,
                                 @RouteParam account_index: Int,
-                                request: Request
-                               ) extends RequestWithUser
-  {
+                                request: Request) extends RequestWithUser {
     def accountInfo: AccountInfo = AccountInfo(account_index, wallet_name, pool_name, user.pubKey)
   }
 
@@ -126,12 +125,13 @@ object TransactionsController {
                                          fees_per_byte: Option[String],
                                          fees_level: Option[String],
                                          amount: String,
-                                         exclude_utxos: Option[Map[String, Int]]
+                                         exclude_utxos: Option[Map[String, Int]],
+                                         partialTx: Option[Boolean]
                                         ) extends CreateTransactionRequest {
     def amountValue: BigInt = BigInt(amount)
     def feesPerByteValue: Option[BigInt] = fees_per_byte.map(BigInt(_))
 
-    def transactionInfo: BTCTransactionInfo = BTCTransactionInfo(recipient, feesPerByteValue, fees_level, amountValue, exclude_utxos.getOrElse(Map[String, Int]()))
+    def transactionInfo: BTCTransactionInfo = BTCTransactionInfo(recipient, feesPerByteValue, fees_level, amountValue, exclude_utxos.getOrElse(Map[String, Int]()), partialTx)
 
     @MethodValidation
     def validateFees: ValidationResult = CommonMethodValidations.validateFees(feesPerByteValue, fees_level)
@@ -153,9 +153,14 @@ object TransactionsController {
     override def transactionInfo: TransactionInfo = XRPTransactionInfo(sendToValue, wipe_to, feesValue: Option[BigInt], memos, destination_tag)
   }
 
-  trait TransactionInfo
+  trait  TransactionInfo
 
-  case class BTCTransactionInfo(recipient: String, feeAmount: Option[BigInt], feeLevel: Option[String], amount: BigInt, excludeUtxos: Map[String, Int]) extends TransactionInfo {
+  case class BTCTransactionInfo(recipient: String,
+                                feeAmount: Option[BigInt],
+                                feeLevel: Option[String],
+                                amount: BigInt,
+                                excludeUtxos: Map[String, Int],
+                                partialTx: Option[Boolean]) extends TransactionInfo {
     lazy val feeMethod: Option[FeeMethod] = feeLevel.map { level => FeeMethod.from(level) }
   }
 

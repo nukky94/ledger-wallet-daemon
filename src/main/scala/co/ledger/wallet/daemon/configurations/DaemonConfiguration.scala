@@ -75,11 +75,12 @@ object DaemonConfiguration {
 
   val updateWalletConfig: Boolean = if (config.hasPath("update_wallet_config")) config.getBoolean("update_wallet_config") else false
 
-  val synchronizationInterval: (Int, Int) = (
-    if (config.hasPath("synchronization.initial_delay_in_seconds")) { config.getInt("synchronization.initial_delay_in_seconds") }
-    else { DEFAULT_SYNC_INITIAL_DELAY },
-    if (config.hasPath("synchronization.interval_in_hours")) { config.getInt("synchronization.interval_in_hours") }
-    else { DEFAULT_SYNC_INTERVAL })
+  object Synchronization {
+    val initialDelay = if (config.hasPath("synchronization.initial_delay_in_seconds")) { config.getInt("synchronization.initial_delay_in_seconds") }
+    else { DEFAULT_SYNC_INITIAL_DELAY }
+    val interval = if (config.hasPath("synchronization.interval_in_hours")) { config.getInt("synchronization.interval_in_hours") }
+    else { DEFAULT_SYNC_INTERVAL }
+  }
 
   val realTimeObserverOn: Boolean =
     if (config.hasPath("realtimeobservation")) { config.getBoolean("realtimeobservation") }
@@ -99,6 +100,11 @@ object DaemonConfiguration {
   val balanceCacheTtlMin: Int =
     if (config.hasPath("balance.cache.ttl_min")) { config.getInt("balance.cache.ttl_min") }
     else { 1 }
+
+  // The core pool operation size
+  val corePoolOpSizeFactor: Int =
+    if (config.hasPath("core.threads.ops.factor")) { config.getInt("core.threads.ops.factor") }
+    else { 4 }
 
   // The maximum size of pagination token cache
   val balanceCacheMaxSize: Long =

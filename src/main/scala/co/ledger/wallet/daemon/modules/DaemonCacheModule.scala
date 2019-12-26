@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.database.{DaemonCache, DefaultDaemonCache}
+import co.ledger.wallet.daemon.exceptions.AccountSyncException
 import co.ledger.wallet.daemon.services.{PoolsService, UsersService}
 import com.google.inject.Provides
 import com.twitter.concurrent.NamedPoolThreadFactory
@@ -14,7 +15,7 @@ import javax.inject.Singleton
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 object DaemonCacheModule extends TwitterModule {
 
@@ -32,21 +33,22 @@ object DaemonCacheModule extends TwitterModule {
     val poolsService = injector.instance[PoolsService](classOf[PoolsService])
 
     def synchronizationTask(): Unit = {
-      val t0 = System.currentTimeMillis()
-      Try(Await.result(poolsService.syncOperations, 5.minutes)) match {
-        case Success(result) =>
-          result.foreach { r =>
+      try {
+        Await.result(poolsService.syncOperations, 1.hour).foreach{
+          case Success(r) =>
             if (r.syncResult) {
               info(s"Synchronization complete for $r")
             }
             else {
               warn(s"Failed synchronizing $r")
             }
-          }
-          val t1 = System.currentTimeMillis()
-          info(s"Synchronization finished, elapsed time: ${t1 - t0} milliseconds")
-        case Failure(e) =>
-          error("Synchronization failed with exception", e)
+          case Failure(e: AccountSyncException) =>
+            error(e.getMessage, e)
+          case Failure(t) =>
+            error("Failed to synchronize account due to unknown exception", t)
+        }
+      } catch {
+        case t: Throwable => error("The full synchronization timed out in 30 minutes", t)
       }
     }
 
@@ -56,10 +58,10 @@ object DaemonCacheModule extends TwitterModule {
         threadFactory = new NamedPoolThreadFactory("scheduler-thread-pool")
       )
       scheduler.schedule(
-        Time.fromSeconds(DaemonConfiguration.synchronizationInterval._1),
-        Duration(DaemonConfiguration.synchronizationInterval._2, TimeUnit.HOURS))(synchronizationTask())
-      info(s"Scheduled synchronization job: initial start in ${DaemonConfiguration.synchronizationInterval._1} seconds, " +
-        s"interval ${DaemonConfiguration.synchronizationInterval._2} hours")
+        Time.fromSeconds(DaemonConfiguration.Synchronization.initialDelay),
+        Duration(DaemonConfiguration.Synchronization.interval, TimeUnit.HOURS))(synchronizationTask())
+      info(s"Scheduled synchronization job: initial start in ${DaemonConfiguration.Synchronization.initialDelay} seconds, " +
+        s"interval ${DaemonConfiguration.Synchronization.interval} hours")
     }
 
     val usersService = injector.instance[UsersService](classOf[UsersService])

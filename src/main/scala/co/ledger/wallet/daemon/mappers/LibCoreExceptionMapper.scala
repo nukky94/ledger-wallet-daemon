@@ -12,10 +12,10 @@ class LibCoreExceptionMapper @Inject()(response: ResponseBuilder)
   extends ExceptionMapper[LedgerCoreWrappedException] {
   override def toResponse(request: Request, throwable: LedgerCoreWrappedException): Response = throwable match {
     case _: NotEnoughFundsException =>
-      ResponseSerializer.serializeBadRequest(
+      ResponseSerializer.serializeBadRequest(request,
         Map("response" -> "Not enough funds"), response)
     case e =>
-      ResponseSerializer.serializeInternalError(response, e)
+      ResponseSerializer.serializeInternalError(request, response, e)
   }
 }
 

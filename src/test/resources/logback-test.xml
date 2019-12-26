@@ -4,7 +4,7 @@
             <pattern>%date %thread TraceId=%X{traceId} [%level] %logger{0} : %msg%n</pattern>
         </encoder>
     </appender>
-    <logger name="co.ledger.wallet.daemon" level="error" />
+    <logger name="co.ledger.wallet.daemon" level="warn" />
     <logger name="slick" level="error" />
     <logger name="io.netty" level="error" />
     <logger name="com.twitter" level="error" />
