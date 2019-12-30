@@ -23,9 +23,8 @@ object DaemonCacheModule extends TwitterModule {
   @Provides
   def provideDaemonCache: DaemonCache = {
     val cache = new DefaultDaemonCache()
-    val t0 = System.currentTimeMillis()
-    Await.result(cache.dbMigration, 1.minutes)
-    info(s"Database migration end, elapsed time: ${System.currentTimeMillis() - t0} milliseconds")
+    val futureDbMigration = time("Database migration end, elapsed time: %d milliseconds")(cache.dbMigration)
+    Await.result(futureDbMigration, 1.minutes)
     cache
   }
 
@@ -48,7 +47,7 @@ object DaemonCacheModule extends TwitterModule {
             error("Failed to synchronize account due to unknown exception", t)
         }
       } catch {
-        case t: Throwable => error("The full synchronization timed out in 30 minutes", t)
+        case t: Throwable => error("The full synchronization timed out in 60 minutes", t)
       }
     }
 
@@ -65,18 +64,49 @@ object DaemonCacheModule extends TwitterModule {
     }
 
     val usersService = injector.instance[UsersService](classOf[UsersService])
-    DaemonConfiguration.adminUsers.map { user =>
-      val existingUser = Await.result(usersService.user(user._1, user._2), 1.minutes)
-      if (existingUser.isEmpty) Await.result(usersService.createUser(user._1, user._2), 1.minutes)
-    }
-    DaemonConfiguration.whiteListUsers.map { user =>
-      val existingUser = Await.result(usersService.user(user._1), 1.minutes)
-      if (existingUser.isEmpty) Await.result(usersService.createUser(user._1, user._2), 1.minutes)
-    }
 
-    if (DaemonConfiguration.updateWalletConfig) {
-      Await.result(updateWalletConfig(), 5.minutes)
-    }
+    val futureAdminUsers =
+      time("Create admin users in %d milliseconds") {
+        Future.sequence(
+          DaemonConfiguration.adminUsers.map {
+            case (username, password) =>
+              usersService.user(username, password).flatMap {
+                case Some(u) => Future.successful(u.id)
+                case _ => usersService.createUser(username, password)
+              }
+          }
+        )
+      }
+
+    val futureWhiteListUsers =
+      time("Create whitelist users in %d milliseconds") {
+        Future.sequence(
+          DaemonConfiguration.whiteListUsers.map {
+            case (pubKey, permissions) =>
+              usersService.user(pubKey).flatMap {
+                case Some(u) => Future.successful(u.id)
+                case _ => usersService.createUser(pubKey, permissions)
+              }
+          }
+        )
+      }
+
+    val futureUpdateWalletConfig =
+      time(s"Update wallet config? ${DaemonConfiguration.updateWalletConfig}, in %d milliseconds") {
+        if (DaemonConfiguration.updateWalletConfig) updateWalletConfig()
+        else Future.unit
+      }
+
+    // Run blocking operations in parallel and await before starting synchronization
+    Await.result(
+      for {
+        _ <- futureAdminUsers
+        _ <- futureWhiteListUsers
+        _ <- futureUpdateWalletConfig
+      } yield (),
+      10.minutes
+    )
+
     startSynchronization()
   }
 

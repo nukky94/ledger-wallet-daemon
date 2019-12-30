@@ -1,6 +1,7 @@
 package co.ledger.wallet.daemon.services
 
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.{Executors, ThreadFactory}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.database.DaemonCache
@@ -10,11 +11,12 @@ import co.ledger.wallet.daemon.models.Account._
 import co.ledger.wallet.daemon.models.Wallet._
 import co.ledger.wallet.daemon.models.{PoolInfo, WalletPoolView}
 import co.ledger.wallet.daemon.schedulers.observers.SynchronizationResult
+import co.ledger.wallet.daemon.utils.FutureUtils
 import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Try}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 @Singleton
 class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
@@ -69,14 +71,33 @@ class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
           } yield accounts.map((poolName, w.getName, _))
         }).map(_.flatten)
       } yield accounts
-      val resultFuture = accountsFuture.map { accounts =>
-        accounts.map {
-          case (poolName, walletName, a) =>
-            val f = a.sync(poolName, walletName)
-            Try(Await.result(f, 30.minute)).recoverWith{ case t =>
-              Failure(AccountSyncException(poolName, walletName, a.getIndex, t))
+
+      // custom ec to avoid thread starvation in the global ec
+      val fullSyncEc: ExecutionContext = ExecutionContext.fromExecutor(
+        Executors.newCachedThreadPool(
+          new ThreadFactory {
+            private val counter = new AtomicLong(0L)
+            def newThread(r: Runnable) = {
+              val th = new Thread(r)
+              th.setName(s"full-sync-operations-thread-${counter.getAndIncrement.toString}")
+              th
             }
-        }
+          }
+        )
+      )
+
+      val resultFuture = accountsFuture.flatMap { accounts =>
+        Future.sequence(
+          accounts.map {
+            case (poolName, walletName, a) =>
+              FutureUtils
+                .withTimeout(a.sync(poolName, walletName)(fullSyncEc), 30.minutes)
+                .map(Success(_))
+                .recover {
+                  case e: Throwable => Failure(AccountSyncException(poolName, walletName, a.getIndex, e))
+                }
+          }
+        )
       }
       resultFuture.onComplete(_ => syncOnGoing.set(false))
       resultFuture
