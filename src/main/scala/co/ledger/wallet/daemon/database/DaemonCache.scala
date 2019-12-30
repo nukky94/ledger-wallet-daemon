@@ -43,20 +43,22 @@ trait DaemonCache {
   def getFreshAddresses(accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[Seq[FreshAddressView]] =
     withAccount(accountInfo)(_.freshAddresses).map(_.map(addr => FreshAddressView(addr.toString, addr.getDerivationPath)))
 
-  def getAccountOperations(batch: Int, fullOp: Int, accountInfo: AccountInfo): Future[PackedOperationsView]
+  def getAccountOperations(batch: Int, fullOp: Int, accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[PackedOperationsView]
 
+  def getNextBatchAccountOperations(next: UUID, fullOp: Int, accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[PackedOperationsView]
 
-  def getNextBatchAccountOperations(next: UUID, fullOp: Int, accountInfo: AccountInfo): Future[PackedOperationsView]
-
-  def getPreviousBatchAccountOperations(previous: UUID,
-                                        fullOp: Int, accountInfo: AccountInfo): Future[PackedOperationsView]
+  def getPreviousBatchAccountOperations(
+    previous: UUID,
+    fullOp: Int,
+    accountInfo: AccountInfo
+  )(implicit ec: ExecutionContext): Future[PackedOperationsView]
 
   // ************** currency ************
   def getCurrency(currencyName: String, poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Option[Currency]] =
     withWalletPool(poolInfo)(_.currency(currencyName))
 
   def getCurrencies(poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Seq[Currency]] =
-    withWalletPool(poolInfo)(_.currencies())
+    withWalletPool(poolInfo)(_.currencies)
 
   // ************** wallet *************
   def createWallet(currencyName: String, walletInfo: WalletInfo)(implicit ec: ExecutionContext): Future[Wallet] = {
@@ -112,9 +114,9 @@ trait DaemonCache {
       case None => Future.failed(UserNotFoundException(pubKey))
     }
 
-  def createUser(pubKey: String, permissions: Int): Future[Long]
+  def createUser(pubKey: String, permissions: Int)(implicit ec: ExecutionContext): Future[Long]
 
-  def getUsers: Future[Seq[User]]
+  def getUsers()(implicit ec: ExecutionContext): Future[Seq[User]]
 
-  def getUser(pubKey: String): Future[Option[User]]
+  def getUser(pubKey: String)(implicit ec: ExecutionContext): Future[Option[User]]
 }

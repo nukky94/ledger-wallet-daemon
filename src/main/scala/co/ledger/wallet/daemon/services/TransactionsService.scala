@@ -1,7 +1,6 @@
 package co.ledger.wallet.daemon.services
 
 import co.ledger.core.WalletType
-import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.controllers.TransactionsController._
 import co.ledger.wallet.daemon.database.DefaultDaemonCache
 import co.ledger.wallet.daemon.exceptions.CurrencyNotFoundException
@@ -13,12 +12,15 @@ import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.marshalling.MessageBodyManager
 import javax.inject.{Inject, Singleton}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class TransactionsService @Inject()(defaultDaemonCache: DefaultDaemonCache, messageBodyManager: MessageBodyManager) extends DaemonService {
 
-  def createTransaction(request: Request, accountInfo: AccountInfo): Future[TransactionView] = {
+  def createTransaction(
+    request: Request,
+    accountInfo: AccountInfo
+  )(implicit ec: ExecutionContext): Future[TransactionView] = {
     defaultDaemonCache.withAccountAndWallet(accountInfo) {
       case (account, wallet) =>
 
@@ -36,7 +38,10 @@ class TransactionsService @Inject()(defaultDaemonCache: DefaultDaemonCache, mess
     }
   }
 
-  def broadcastTransaction(request: Request, accountInfo: AccountInfo): Future[String] = {
+  def broadcastTransaction(
+    request: Request,
+    accountInfo: AccountInfo
+  )(implicit ec: ExecutionContext): Future[String] = {
     defaultDaemonCache.withAccountAndWallet(accountInfo) {
       case (account, wallet) =>
         for {

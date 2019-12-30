@@ -9,20 +9,20 @@ import co.ledger.wallet.daemon.utils.HexUtils
 import javax.inject.{Inject, Singleton}
 import org.bitcoinj.core.Sha256Hash
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class UsersService @Inject()(daemonCache: DaemonCache, ecdsa: ECDSAService) extends DaemonService {
 
-  def user(username: String, password: String): Future[Option[User]] = {
+  def user(username: String, password: String)(implicit ec: ExecutionContext): Future[Option[User]] = {
     user(pubKey(username, password))
   }
 
-  def user(pubKey: String): Future[Option[User]] = {
+  def user(pubKey: String)(implicit ec: ExecutionContext): Future[Option[User]] = {
     daemonCache.getUser(pubKey)
   }
 
-  def createUser(publicKey: String, permissions: Int = 0): Future[Long] = {
+  def createUser(publicKey: String, permissions: Int = 0)(implicit ec: ExecutionContext): Future[Long] = {
     info(LogMsgMaker.newInstance("Create user")
       .append("pub_key", publicKey)
       .append("permissions", permissions)
@@ -30,7 +30,7 @@ class UsersService @Inject()(daemonCache: DaemonCache, ecdsa: ECDSAService) exte
     daemonCache.createUser(publicKey, permissions)
   }
 
-  def createUser(username: String, password: String): Future[Long] = {
+  def createUser(username: String, password: String)(implicit ec: ExecutionContext): Future[Long] = {
     info(LogMsgMaker.newInstance("Create user")
       .append("username", username)
       .toString())

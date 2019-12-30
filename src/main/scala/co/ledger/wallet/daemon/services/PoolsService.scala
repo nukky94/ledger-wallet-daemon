@@ -2,7 +2,6 @@ package co.ledger.wallet.daemon.services
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.database.DaemonCache
 import co.ledger.wallet.daemon.database.DefaultDaemonCache.User
 import co.ledger.wallet.daemon.exceptions.{AccountSyncException, SyncOnGoingException}
@@ -13,7 +12,7 @@ import co.ledger.wallet.daemon.schedulers.observers.SynchronizationResult
 import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Try}
 
 @Singleton
@@ -21,22 +20,25 @@ class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
 
   import PoolsService._
 
-  def createPool(poolInfo: PoolInfo, configuration: PoolConfiguration): Future[WalletPoolView] = {
+  def createPool(
+    poolInfo: PoolInfo,
+    configuration: PoolConfiguration
+  )(implicit ec: ExecutionContext): Future[WalletPoolView] = {
     daemonCache.createWalletPool(poolInfo, configuration.toString).flatMap(_.view)
   }
 
-  def pools(user: User): Future[Seq[WalletPoolView]] = {
+  def pools(user: User)(implicit ec: ExecutionContext): Future[Seq[WalletPoolView]] = {
     daemonCache.getWalletPools(user.pubKey).flatMap { pools => Future.sequence(pools.map(_.view)) }
   }
 
-  def pool(poolInfo: PoolInfo): Future[Option[WalletPoolView]] = {
+  def pool(poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Option[WalletPoolView]] = {
     daemonCache.getWalletPool(poolInfo).flatMap {
       case Some(pool) => pool.view.map(Option(_))
       case None => Future(None)
     }
   }
 
-  def removePool(poolInfo: PoolInfo): Future[Unit] = {
+  def removePool(poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Unit] = {
     daemonCache.deleteWalletPool(poolInfo)
   }
 
@@ -50,7 +52,7 @@ class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
     *
     * @return a Future of sequence of result of synchronization.
     */
-  def syncOperations: Future[Seq[Try[SynchronizationResult]]] = {
+  def syncOperations()(implicit ec: ExecutionContext): Future[Seq[Try[SynchronizationResult]]] = {
     if (syncOnGoing.get()) {
       Future.failed(SyncOnGoingException())
     } else {
@@ -93,7 +95,7 @@ class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
     *
     * @return a Future of sequence of result of synchronization.
     */
-  def syncOperations(poolInfo: PoolInfo): Future[Seq[SynchronizationResult]] =
+  def syncOperations(poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Seq[SynchronizationResult]] =
     daemonCache.withWalletPool(poolInfo)(_.sync())
 
 }

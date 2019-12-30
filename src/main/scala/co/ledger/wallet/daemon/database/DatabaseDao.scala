@@ -22,7 +22,7 @@ class DatabaseDao @Inject()(db: Database) extends Logging {
     (r: Runnable) => new Thread(r, "database-access")
   ))
 
-  def migrate(): Future[Unit] = {
+  def migrate()(implicit ec: ExecutionContext): Future[Unit] = {
     info("Start database migration")
     val lastMigrationVersion = databaseVersions.sortBy(_.version.desc).map(_.version).take(1).result.head
     db.run(lastMigrationVersion.transactionally) recover {
@@ -50,7 +50,7 @@ class DatabaseDao @Inject()(db: Database) extends Logging {
     }
   }
 
-  def deletePool(poolName: String, userId: Long): Future[Option[PoolDto]] = {
+  def deletePool(poolName: String, userId: Long)(implicit ec: ExecutionContext): Future[Option[PoolDto]] = {
     val query = filterPool(poolName, userId)
     val action = for {
       result <- query.result.headOption
@@ -61,23 +61,23 @@ class DatabaseDao @Inject()(db: Database) extends Logging {
     }
   }
 
-  def getPools(userId: Long): Future[Seq[PoolDto]] =
+  def getPools(userId: Long)(implicit ec: ExecutionContext): Future[Seq[PoolDto]] =
     safeRun(pools.filter(pool => pool.userId === userId.bind).sortBy(_.id.desc).result).map { rows => rows.map(createPool)}
 
-  def getPool(userId: Long, poolName: String): Future[Option[PoolDto]] =
+  def getPool(userId: Long, poolName: String)(implicit ec: ExecutionContext): Future[Option[PoolDto]] =
     safeRun(pools.filter(pool => pool.userId === userId && pool.name === poolName).result.headOption).map { row => row.map(createPool)}
 
-  def getUser(targetPubKey: Array[Byte]): Future[Option[UserDto]] = {
+  def getUser(targetPubKey: Array[Byte])(implicit ec: ExecutionContext): Future[Option[UserDto]] = {
     getUser(HexUtils.valueOf(targetPubKey))
   }
 
-  def getUser(pubKey: String): Future[Option[UserDto]] =
+  def getUser(pubKey: String)(implicit ec: ExecutionContext): Future[Option[UserDto]] =
     safeRun(filterUser(pubKey).result.headOption).map { userRow => userRow.map(createUser)}
 
-  def getUsers: Future[Seq[UserDto]] =
+  def getUsers()(implicit ec: ExecutionContext): Future[Seq[UserDto]] =
     safeRun(users.result).map { rows => rows.map(createUser)}
 
-  def insertPool(newPool: PoolDto): Future[Long] = {
+  def insertPool(newPool: PoolDto)(implicit ec: ExecutionContext): Future[Long] = {
     safeRun(filterPool(newPool.name, newPool.userId).exists.result.flatMap { exists =>
       if (!exists) {
         pools.returning(pools.map(_.id)) += createPoolRow(newPool)
@@ -87,7 +87,7 @@ class DatabaseDao @Inject()(db: Database) extends Logging {
     })
   }
 
-  def insertUser(newUser: UserDto): Future[Long] = {
+  def insertUser(newUser: UserDto)(implicit ec: ExecutionContext): Future[Long] = {
     safeRun(filterUser(newUser.pubKey).exists.result.flatMap { (exists) =>
       if (!exists) {
         users.returning(users.map(_.id)) += createUserRow(newUser)
@@ -97,7 +97,7 @@ class DatabaseDao @Inject()(db: Database) extends Logging {
     })
   }
 
-  private def safeRun[R](query: DBIO[R]): Future[R] =
+  private def safeRun[R](query: DBIO[R])(implicit ec: ExecutionContext): Future[R] =
     db.run(query.transactionally).recoverWith {
       case e: DaemonException => Future.failed(e)
       case others: Throwable => Future.failed(DaemonDatabaseException("Failed to run database query", others))

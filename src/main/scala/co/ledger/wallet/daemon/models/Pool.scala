@@ -3,7 +3,6 @@ package co.ledger.wallet.daemon.models
 import co.ledger.core
 import co.ledger.core.implicits._
 import co.ledger.core.{ConfigurationDefaults, ErrorCode}
-import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.clients.ClientFactory
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.database.PoolDto
@@ -22,17 +21,18 @@ import org.bitcoinj.core.Sha256Hash
 
 import scala.collection.JavaConverters._
 import scala.collection._
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
   private[this] val self = this
 
   private val _coreExecutionContext = LedgerCoreExecutionContext.operationPool
+  implicit val ec: ExecutionContext = _coreExecutionContext.ec
   private[this] val eventReceivers: mutable.Set[core.EventReceiver] = Utils.newConcurrentSet[core.EventReceiver]
 
   val name: String = coreP.getName
 
-  def view: Future[WalletPoolView] = coreP.getWalletCount().map { count => WalletPoolView(name, count) }
+  def view(implicit ec: ExecutionContext): Future[WalletPoolView] = coreP.getWalletCount().map { count => WalletPoolView(name, count) }
 
   /**
     * Obtain wallets by batch size and offset.
@@ -41,7 +41,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     * @param batch  the size of query.
     * @return a tuple of total wallet count and a sequence of wallets from offset to batch size.
     */
-  def wallets(offset: Int, batch: Int): Future[(Int, Seq[core.Wallet])] = {
+  def wallets(offset: Int, batch: Int)(implicit ec: ExecutionContext): Future[(Int, Seq[core.Wallet])] = {
     assert(offset >= 0, s"offset invalid $offset")
     assert(batch > 0, "batch must be positive")
     coreP.getWalletCount().flatMap { count =>
@@ -57,7 +57,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     *
     * @return a sequence of wallet
     */
-  def wallets: Future[Seq[core.Wallet]] = {
+  def wallets(implicit ec: ExecutionContext): Future[Seq[core.Wallet]] = {
     coreP.getWalletCount().flatMap { count =>
       val batch = 20
       def walletsFromOffset(offset: Int): Future[List[core.Wallet]] = {
@@ -75,7 +75,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     }
   }
 
-  private def startListen(wallet: core.Wallet): Future[core.Wallet] = {
+  private def startListen(wallet: core.Wallet)(implicit ec: ExecutionContext): Future[core.Wallet] = {
     for {
       _ <- wallet.startCacheAndRealTimeObserver
     } yield wallet
@@ -87,7 +87,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     * @param walletName name of wallet.
     * @return a future of optional wallet.
     */
-  def wallet(walletName: String): Future[Option[core.Wallet]] = {
+  def wallet(walletName: String)(implicit ec: ExecutionContext): Future[Option[core.Wallet]] = {
     coreP.getWallet(walletName).map(Option(_)).recover {
       case _: co.ledger.core.implicits.WalletNotFoundException => None
     }
@@ -99,7 +99,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     * @param currencyName the specified currency name.
     * @return a future of optional currency.
     */
-  def currency(currencyName: String): Future[Option[core.Currency]] =
+  def currency(currencyName: String)(implicit ec: ExecutionContext): Future[Option[core.Currency]] =
     coreP.getCurrency(currencyName).map(Option.apply).recover {
       case _: core.implicits.CurrencyNotFoundException => None
     }
@@ -109,7 +109,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     *
     * @return future of currencies sequence.
     */
-  def currencies(): Future[Seq[core.Currency]] = {
+  def currencies(implicit ec: ExecutionContext): Future[Seq[core.Currency]] = {
     coreP.getCurrencies().map(_.asScala.toList)
   }
 
@@ -118,13 +118,13 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     *
     * @return a future of Unit.
     */
-  def clear: Future[Unit] = {
+  def clear()(implicit ec: ExecutionContext): Future[Unit] = {
     Future.successful(stopRealTimeObserver()).map { _ =>
       unregisterEventReceivers()
     }
   }
 
-  def addWalletIfNotExist(walletName: String, currencyName: String): Future[core.Wallet] = {
+  def addWalletIfNotExist(walletName: String, currencyName: String)(implicit ec: ExecutionContext): Future[core.Wallet] = {
     coreP.getCurrency(currencyName).flatMap { coreC =>
       coreP.createWallet(walletName, coreC, buildWalletConfig(currencyName)).flatMap { coreW =>
         info(LogMsgMaker.newInstance("Wallet created").append("name", walletName).append("pool_name", name).append("currency_name", currencyName).toString())
@@ -143,7 +143,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     }
   }
 
-  def updateWalletConfig(wallet: core.Wallet): Future[core.Wallet] = {
+  def updateWalletConfig(wallet: core.Wallet)(implicit ec: ExecutionContext): Future[core.Wallet] = {
     val walletConfig = buildWalletConfig(wallet.getCurrency.getName)
     info(LogMsgMaker.newInstance("Updating wallet")
       .append("pool_name", name)
@@ -196,7 +196,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     *
     * @return a future of squence of synchronization results.
     */
-  def sync(): Future[Seq[SynchronizationResult]] = {
+  def sync()(implicit ec: ExecutionContext): Future[Seq[SynchronizationResult]] = {
     for {
       count <- coreP.getWalletCount()
       wallets <- coreP.getWallets(0, count)
@@ -209,7 +209,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     *
     * @return a future of Unit.
     */
-  def startRealTimeObserver(): Future[Unit] = {
+  def startRealTimeObserver()(implicit ec: ExecutionContext): Future[Unit] = {
     coreP.getWalletCount().map { count =>
       coreP.getWallets(0, count).map { coreWs =>
         coreWs.asScala.map { coreW => startListen(coreW) }

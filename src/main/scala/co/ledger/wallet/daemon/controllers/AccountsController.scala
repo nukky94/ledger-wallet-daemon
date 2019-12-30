@@ -3,7 +3,7 @@ package co.ledger.wallet.daemon.controllers
 import java.util.{Date, UUID}
 
 import co.ledger.core.{OperationType, TimePeriod}
-import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
+import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.controllers.requests.CommonMethodValidations.DATE_FORMATTER
 import co.ledger.wallet.daemon.controllers.requests._
 import co.ledger.wallet.daemon.controllers.responses.ResponseSerializer
@@ -20,11 +20,13 @@ import com.twitter.finatra.request.{QueryParam, RouteParam}
 import com.twitter.finatra.validation.{MethodValidation, ValidationResult}
 import javax.inject.Inject
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class AccountsController @Inject()(accountsService: AccountsService) extends Controller {
 
   import AccountsController._
+
+  implicit val ec: ExecutionContext = MDCPropagatingExecutionContext.Implicits.global
 
   prefix("/pools/:pool_name/wallets/:wallet_name") {
 

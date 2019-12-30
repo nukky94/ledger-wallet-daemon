@@ -2,7 +2,7 @@ package co.ledger.wallet.daemon.modules
 
 import java.util.concurrent.TimeUnit
 
-import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
+import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.database.{DaemonCache, DefaultDaemonCache}
 import co.ledger.wallet.daemon.exceptions.AccountSyncException
@@ -14,17 +14,19 @@ import com.twitter.util.{Duration, ScheduledThreadPoolTimer, Time}
 import javax.inject.Singleton
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object DaemonCacheModule extends TwitterModule {
+
+  implicit val ec: ExecutionContext = MDCPropagatingExecutionContext.Implicits.global
 
   @Singleton
   @Provides
   def provideDaemonCache: DaemonCache = {
     val cache = new DefaultDaemonCache()
     val t0 = System.currentTimeMillis()
-    Await.result(cache.dbMigration, 1.minutes)
+    Await.result(cache.dbMigration(), 1.minutes)
     info(s"Database migration end, elapsed time: ${System.currentTimeMillis() - t0} milliseconds")
     cache
   }
@@ -34,7 +36,7 @@ object DaemonCacheModule extends TwitterModule {
 
     def synchronizationTask(): Unit = {
       try {
-        Await.result(poolsService.syncOperations, 1.hour).foreach{
+        Await.result(poolsService.syncOperations(), 1.hour).foreach{
           case Success(r) =>
             if (r.syncResult) {
               info(s"Synchronization complete for $r")
@@ -80,7 +82,7 @@ object DaemonCacheModule extends TwitterModule {
     startSynchronization()
   }
 
-  private def updateWalletConfig(): Future[Unit] = {
+  private def updateWalletConfig()(implicit ec: ExecutionContext): Future[Unit] = {
     for {
       users <- provideDaemonCache.getUsers
       pools <- Future.traverse(users)(_.pools()).map(_.flatten)

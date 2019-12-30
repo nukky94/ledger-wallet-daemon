@@ -4,13 +4,12 @@ import java.util.Date
 
 import co.ledger.core
 import co.ledger.core.implicits._
-import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.models.coins.Coin._
 import co.ledger.wallet.daemon.utils.HexUtils
 import com.fasterxml.jackson.annotation.JsonProperty
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object Bitcoin {
   val currencyFamily = core.WalletType.BITCOIN
@@ -40,7 +39,7 @@ object Bitcoin {
     )
   }
 
-  def newUnsignedTransactionView(from: core.BitcoinLikeTransaction, feesPerByte: BigInt): Future[UnsignedBitcoinTransactionView] = {
+  def newUnsignedTransactionView(from: core.BitcoinLikeTransaction, feesPerByte: BigInt)(implicit ec: ExecutionContext): Future[UnsignedBitcoinTransactionView] = {
     Future.sequence(from.getInputs.asScala.map(newUnsignedInputView)).map { unsignedInputs =>
       UnsignedBitcoinTransactionView(
         newEstimatedSizeView(from.getEstimatedSize),
@@ -71,7 +70,7 @@ object Bitcoin {
     CommonBlockView(from.getHash, from.getHeight, from.getTime)
   }
 
-  private def newUnsignedInputView(from: core.BitcoinLikeInput): Future[UnsignedBitcoinInputView] = {
+  private def newUnsignedInputView(from: core.BitcoinLikeInput)(implicit ec: ExecutionContext): Future[UnsignedBitcoinInputView] = {
     from.getPreviousTransaction() map { previousTx =>
       val derivationPath = for {
         path <- from.getDerivationPath.asScala

@@ -1,6 +1,7 @@
 package co.ledger.wallet.daemon.controllers
 
 import co.ledger.core.RippleLikeMemo
+import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.controllers.requests.{CommonMethodValidations, RequestWithUser}
 import co.ledger.wallet.daemon.models.{AccountInfo, FeeMethod}
 import co.ledger.wallet.daemon.services.TransactionsService
@@ -11,9 +12,13 @@ import com.twitter.finatra.request.RouteParam
 import com.twitter.finatra.validation.{MethodValidation, ValidationResult}
 import javax.inject.Inject
 
+import scala.concurrent.ExecutionContext
+
 class TransactionsController @Inject()(transactionsService: TransactionsService) extends Controller {
 
   import TransactionsController._
+
+  implicit val ec: ExecutionContext = MDCPropagatingExecutionContext.Implicits.global
 
   /**
     * Transaction creation method.

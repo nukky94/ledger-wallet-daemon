@@ -1,5 +1,6 @@
 package co.ledger.wallet.daemon.database
 
+import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.exceptions.{DaemonDatabaseException, UserAlreadyExistException}
 import co.ledger.wallet.daemon.utils.HexUtils
@@ -9,11 +10,13 @@ import org.junit.{BeforeClass, Test}
 import org.scalatest.junit.AssertionsForJUnit
 import slick.jdbc.JdbcBackend.Database
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration
 
 class DatabaseDaoTest extends AssertionsForJUnit {
+
   import DatabaseDaoTest._
+
   @Test def verifyCreateUser(): Unit = {
     val pubKey = "A3B4A94D8E33308DD08A3A8C937822101E229D85A2C0DFABC236A8C6A82E58076D"
     val expectedUser = UserDto(pubKey, 0)
@@ -54,7 +57,7 @@ class DatabaseDaoTest extends AssertionsForJUnit {
     assert(id === insertedUser.get.id.get)
     val expectedPool = PoolDto("myPool", insertedUser.get.id.get, "")
     Await.result(dbDao.insertPool(expectedPool), Duration.Inf)
-    val actualPool =Await.result(dbDao.getPools(insertedUser.get.id.get), Duration.Inf)
+    val actualPool = Await.result(dbDao.getPools(insertedUser.get.id.get), Duration.Inf)
     assertEquals(1, actualPool.size)
     assertEquals(expectedPool.name, actualPool.head.name)
     assertEquals(expectedPool.userId, actualPool.head.userId)
@@ -94,6 +97,8 @@ class DatabaseDaoTest extends AssertionsForJUnit {
 }
 
 object DatabaseDaoTest extends Logging {
+  implicit val ec: ExecutionContext = MDCPropagatingExecutionContext.Implicits.global
+
   @BeforeClass def initialization(): Unit = {
     debug("******************************* before class start")
     Await.result(dbDao.migrate(), Duration.Inf)

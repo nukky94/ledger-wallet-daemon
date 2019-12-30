@@ -2,7 +2,7 @@ package co.ledger.wallet.daemon.database
 
 import java.util.UUID
 
-import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
+import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.database.DefaultDaemonCache.User
 import co.ledger.wallet.daemon.exceptions._
 import co.ledger.wallet.daemon.models
@@ -13,13 +13,12 @@ import org.junit.Assert._
 import org.junit.{BeforeClass, Test}
 import org.scalatest.junit.AssertionsForJUnit
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration
 
 class DaemonCacheTest extends AssertionsForJUnit {
 
   import DaemonCacheTest._
-
 
   @Test def verifyGetPoolNotFound(): Unit = {
     val pool = Await.result(cache.getWalletPool(PoolInfo("pool_not_exist", PUB_KEY_1)), Duration.Inf)
@@ -113,6 +112,8 @@ class DaemonCacheTest extends AssertionsForJUnit {
 }
 
 object DaemonCacheTest {
+  implicit val ec: ExecutionContext = MDCPropagatingExecutionContext.Implicits.global
+
   @BeforeClass def initialization(): Unit = {
     NativeLibLoader.loadLibs()
     Await.result(cache.dbMigration, Duration.Inf)
