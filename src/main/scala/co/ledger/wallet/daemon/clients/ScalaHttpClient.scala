@@ -1,5 +1,8 @@
 package co.ledger.wallet.daemon.clients
 
+import scala.collection.JavaConverters._
+import scala.concurrent.{ExecutionContext, Future}
+
 import java.io.{BufferedInputStream, DataOutputStream, OutputStream}
 import java.net.{HttpURLConnection, InetSocketAddress, URL}
 import java.util
@@ -8,9 +11,6 @@ import co.ledger.core._
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
 import com.twitter.inject.Logging
-
-import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
 
 class ScalaHttpClient(implicit val ec: ExecutionContext) extends co.ledger.core.HttpClient with Logging {
 

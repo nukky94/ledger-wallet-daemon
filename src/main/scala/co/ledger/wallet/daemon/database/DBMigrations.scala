@@ -1,6 +1,5 @@
 package co.ledger.wallet.daemon.database
 
-
 /**
   * Object keeps database migration history
   */

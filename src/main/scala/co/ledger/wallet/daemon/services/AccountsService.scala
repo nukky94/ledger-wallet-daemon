@@ -1,6 +1,12 @@
 package co.ledger.wallet.daemon.services
 
+import scala.collection.JavaConverters._
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Success, Try}
+
 import java.util.{Date, UUID}
+import javax.inject.{Inject, Singleton}
 
 import cats.data.OptionT
 import cats.instances.future._
@@ -24,14 +30,8 @@ import co.ledger.wallet.daemon.utils.Utils.{RichBigInt, _}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.twitter.finagle.Service
 import com.twitter.finagle.http.{Method, Request, Response}
-import javax.inject.{Inject, Singleton}
 import org.web3j.abi.datatypes.{Address, Function, Type, Uint}
 import org.web3j.abi.{FunctionEncoder, TypeReference}
-
-import scala.collection.JavaConverters._
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Success, Try}
 
 @Singleton
 class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
@@ -93,12 +93,7 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
       Try(FunctionEncoder.encode(function))
     }
 
-    def runWithFallback(
-      cb: Future[BigInt],
-      fallback: FallbackParams,
-      client: Service[Request, Response],
-      timeout: scala.concurrent.duration.Duration
-    )(implicit ec: ExecutionContext): Future[BigInt] = {
+    def runWithFallback(cb: Future[BigInt], fallback: FallbackParams, client: Service[Request, Response], timeout: scala.concurrent.duration.Duration)(implicit ec: ExecutionContext): Future[BigInt] = {
       Future(Await.result(cb, timeout)).recoverWith { case t =>
         warn(s"Failed to get balance from libcore: $t")
         info("Using fallback provider")
@@ -169,11 +164,7 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
         }
     }
 
-  def getBatchedERC20Operations(
-    tokenAccountInfo: TokenAccountInfo,
-    offset: Long,
-    batch: Int
-  )(implicit ec: ExecutionContext): Future[List[OperationView]] =
+  def getBatchedERC20Operations(tokenAccountInfo: TokenAccountInfo, offset: Long, batch: Int)(implicit ec: ExecutionContext): Future[List[OperationView]] =
     daemonCache.withAccountAndWallet(tokenAccountInfo.accountInfo) {
       case (account, wallet) =>
         account.batchedErc20Operations(tokenAccountInfo.tokenAddress, offset, batch).flatMap { operations =>
@@ -183,11 +174,7 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
         }
     }
 
-  def getBatchedERC20Operations(
-    accountInfo: AccountInfo,
-    offset: Long,
-    batch: Int
-  )(implicit ec: ExecutionContext): Future[List[OperationView]] =
+  def getBatchedERC20Operations(accountInfo: AccountInfo, offset: Long, batch: Int)(implicit ec: ExecutionContext): Future[List[OperationView]] =
     daemonCache.withAccountAndWallet(accountInfo) {
       case (account, wallet) =>
         account.batchedErc20Operations(offset, batch).flatMap { operations =>
@@ -218,12 +205,7 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
   def getTokenCoreAccount(tokenAccountInfo: TokenAccountInfo)(implicit ec: ExecutionContext): Future[core.ERC20LikeAccount] =
     daemonCache.withAccount(tokenAccountInfo.accountInfo)(_.erc20Account(tokenAccountInfo.tokenAddress).liftTo[Future])
 
-  def getTokenCoreAccountBalanceHistory(
-    tokenAccountInfo: TokenAccountInfo,
-    startDate: Date,
-    endDate: Date,
-    period: core.TimePeriod
-  )(implicit ec: ExecutionContext): Future[List[BigInt]] = {
+  def getTokenCoreAccountBalanceHistory(tokenAccountInfo: TokenAccountInfo, startDate: Date, endDate: Date, period: core.TimePeriod)(implicit ec: ExecutionContext): Future[List[BigInt]] = {
     getTokenCoreAccount(tokenAccountInfo).map(_.getBalanceHistoryFor(startDate, endDate, period).asScala.map(_.asScala).toList)
   }
 
@@ -234,22 +216,13 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
   def accountDerivationPath(accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[String] =
     daemonCache.withWallet(accountInfo.walletInfo)(_.accountDerivationPathInfo(accountInfo.accountIndex))
 
-  def nextAccountCreationInfo(
-    accountIndex: Option[Int],
-    walletInfo: WalletInfo
-  )(implicit ec: ExecutionContext): Future[AccountDerivationView] =
+  def nextAccountCreationInfo(accountIndex: Option[Int], walletInfo: WalletInfo)(implicit ec: ExecutionContext): Future[AccountDerivationView] =
     daemonCache.withWallet(walletInfo)(_.accountCreationInfo(accountIndex)).map(_.view)
 
-  def nextExtendedAccountCreationInfo(
-    accountIndex: Option[Int],
-    walletInfo: WalletInfo
-  )(implicit ec: ExecutionContext): Future[AccountExtendedDerivationView] =
+  def nextExtendedAccountCreationInfo(accountIndex: Option[Int], walletInfo: WalletInfo)(implicit ec: ExecutionContext): Future[AccountExtendedDerivationView] =
     daemonCache.withWallet(walletInfo)(_.accountExtendedCreation(accountIndex)).map(_.view)
 
-  def accountOperations(
-    queryParams: OperationQueryParams,
-    accountInfo: AccountInfo
-  )(implicit ec: ExecutionContext): Future[PackedOperationsView] = {
+  def accountOperations(queryParams: OperationQueryParams, accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[PackedOperationsView] = {
     (queryParams.next, queryParams.previous) match {
       case (Some(n), _) =>
         // next has more priority, using database batch instead queryParams.batch
@@ -275,11 +248,7 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
     }
   }
 
-  def accountOperation(
-    uid: String,
-    fullOp: Int,
-    accountInfo: AccountInfo
-  )(implicit ec: ExecutionContext): Future[Option[OperationView]] =
+  def accountOperation(uid: String, fullOp: Int, accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[Option[OperationView]] =
     daemonCache.withAccountAndWallet(accountInfo) {
       case (account, wallet) =>
         for {
@@ -291,18 +260,12 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
         } yield op
     }
 
-  def createAccount(
-    accountCreationBody: AccountDerivationView,
-    walletInfo: WalletInfo
-  )(implicit ec: ExecutionContext): Future[AccountView] =
+  def createAccount(accountCreationBody: AccountDerivationView, walletInfo: WalletInfo)(implicit ec: ExecutionContext): Future[AccountView] =
     daemonCache.withWallet(walletInfo) {
       w => w.addAccountIfNotExist(accountCreationBody).flatMap(_.accountView(walletInfo.walletName, w.getCurrency.currencyView))
     }
 
-  def createAccountWithExtendedInfo(
-    derivations: AccountExtendedDerivationView,
-    walletInfo: WalletInfo
-  )(implicit ec: ExecutionContext): Future[AccountView] =
+  def createAccountWithExtendedInfo(derivations: AccountExtendedDerivationView, walletInfo: WalletInfo)(implicit ec: ExecutionContext): Future[AccountView] =
     daemonCache.withWallet(walletInfo) {
       w => w.addAccountIfNotExist(derivations).flatMap(_.accountView(walletInfo.walletName, w.getCurrency.currencyView))
     }

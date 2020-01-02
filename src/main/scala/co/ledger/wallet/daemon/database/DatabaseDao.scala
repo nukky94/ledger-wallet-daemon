@@ -1,5 +1,7 @@
 package co.ledger.wallet.daemon.database
 
+import scala.concurrent.{ExecutionContext, Future}
+
 import java.sql.Timestamp
 import java.util.Date
 import java.util.concurrent.Executors
@@ -11,8 +13,6 @@ import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.TransactionIsolation
-
-import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DatabaseDao @Inject()(db: Database) extends Logging {

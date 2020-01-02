@@ -6,7 +6,6 @@ import co.ledger.core.EthereumLikeBlock
 import co.ledger.wallet.daemon.models.coins.Coin.BlockView
 import com.fasterxml.jackson.annotation.JsonProperty
 
-
 object Coin {
 
   trait NetworkParamsView

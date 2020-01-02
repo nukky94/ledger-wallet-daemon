@@ -1,13 +1,13 @@
 package co.ledger.wallet.daemon.models.coins
 
+import scala.collection.JavaConverters._
+
 import java.util.Date
 
 import co.ledger.core._
 import co.ledger.wallet.daemon.models.coins.Coin.{NetworkParamsView, TransactionView}
 import co.ledger.wallet.daemon.utils.HexUtils
 import com.fasterxml.jackson.annotation.JsonProperty
-
-import scala.collection.JavaConverters._
 
 case class RippleNetworkParamView(@JsonProperty("identifier") identifier: String,
                                   @JsonProperty("message_prefix") messagePrefix: String,

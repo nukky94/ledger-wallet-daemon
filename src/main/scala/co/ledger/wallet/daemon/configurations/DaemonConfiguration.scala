@@ -1,13 +1,13 @@
 package co.ledger.wallet.daemon.configurations
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
+import scala.util.Try
+
 import java.util.Locale
 
 import com.typesafe.config.ConfigFactory
 import slick.jdbc.JdbcProfile
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
-import scala.util.Try
 
 object DaemonConfiguration {
   private val config = ConfigFactory.load()

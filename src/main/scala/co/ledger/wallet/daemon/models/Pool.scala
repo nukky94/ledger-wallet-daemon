@@ -1,8 +1,13 @@
 package co.ledger.wallet.daemon.models
 
+import scala.collection.JavaConverters._
+import scala.collection._
+import scala.concurrent.{ExecutionContext, Future}
+
 import co.ledger.core
 import co.ledger.core.implicits._
 import co.ledger.core.{ConfigurationDefaults, ErrorCode}
+import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.clients.ClientFactory
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.database.PoolDto
@@ -19,15 +24,11 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.twitter.inject.Logging
 import org.bitcoinj.core.Sha256Hash
 
-import scala.collection.JavaConverters._
-import scala.collection._
-import scala.concurrent.{ExecutionContext, Future}
-
 class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
   private[this] val self = this
 
   private val _coreExecutionContext = LedgerCoreExecutionContext.operationPool
-  implicit val ec: ExecutionContext = _coreExecutionContext.ec
+  implicit val ec: ExecutionContext = MDCPropagatingExecutionContext.Implicits.global
   private[this] val eventReceivers: mutable.Set[core.EventReceiver] = Utils.newConcurrentSet[core.EventReceiver]
 
   val name: String = coreP.getName
@@ -196,7 +197,7 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     *
     * @return a future of squence of synchronization results.
     */
-  def sync()(implicit ec: ExecutionContext): Future[Seq[SynchronizationResult]] = {
+  def sync(implicit ec: ExecutionContext): Future[Seq[SynchronizationResult]] = {
     for {
       count <- coreP.getWalletCount()
       wallets <- coreP.getWallets(0, count)

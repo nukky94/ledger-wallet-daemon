@@ -1,15 +1,15 @@
 package co.ledger.wallet.daemon.services
 
+import scala.concurrent.{ExecutionContext, Future}
+
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import javax.inject.{Inject, Singleton}
 
 import co.ledger.wallet.daemon.database.DaemonCache
 import co.ledger.wallet.daemon.database.DefaultDaemonCache.User
 import co.ledger.wallet.daemon.utils.HexUtils
-import javax.inject.{Inject, Singleton}
 import org.bitcoinj.core.Sha256Hash
-
-import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class UsersService @Inject()(daemonCache: DaemonCache, ecdsa: ECDSAService) extends DaemonService {

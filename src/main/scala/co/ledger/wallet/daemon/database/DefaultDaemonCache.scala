@@ -1,7 +1,12 @@
 package co.ledger.wallet.daemon.database
 
+import scala.collection.JavaConverters._
+import scala.collection._
+import scala.concurrent.{ExecutionContext, Future}
+
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import javax.inject.Singleton
 
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
@@ -12,12 +17,7 @@ import co.ledger.wallet.daemon.models._
 import co.ledger.wallet.daemon.schedulers.observers.{NewOperationEventReceiver, SynchronizationResult}
 import co.ledger.wallet.daemon.services.LogMsgMaker
 import com.twitter.inject.Logging
-import javax.inject.Singleton
 import slick.jdbc.JdbcBackend.Database
-
-import scala.collection.JavaConverters._
-import scala.collection._
-import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DefaultDaemonCache() extends DaemonCache with Logging {
@@ -32,7 +32,7 @@ class DefaultDaemonCache() extends DaemonCache with Logging {
 
   def syncOperations()(implicit ec: ExecutionContext): Future[Seq[SynchronizationResult]] = {
     getUsers.flatMap { us =>
-      Future.sequence(us.map { user => user.sync() }).map(_.flatten)
+      Future.sequence(us.map { user => user.sync }).map(_.flatten)
     }
   }
 
@@ -47,7 +47,7 @@ class DefaultDaemonCache() extends DaemonCache with Logging {
     }
   }
 
-  def getUsers()(implicit ec: ExecutionContext): Future[Seq[User]] = {
+  def getUsers(implicit ec: ExecutionContext): Future[Seq[User]] = {
     dbDao.getUsers.map { us =>
       us.map { user =>
         if (!users.contains(user.pubKey)) users.put(user.pubKey, newUser(user))
@@ -65,11 +65,7 @@ class DefaultDaemonCache() extends DaemonCache with Logging {
     }
   }
 
-  def getPreviousBatchAccountOperations(
-    previous: UUID,
-    fullOp: Int,
-    accountInfo: AccountInfo
-  )(implicit ec: ExecutionContext): Future[PackedOperationsView] = {
+  def getPreviousBatchAccountOperations(previous: UUID, fullOp: Int, accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[PackedOperationsView] = {
     withAccountAndWallet(accountInfo) {
       case (account, wallet) =>
         val previousRecord = opsCache.getPreviousOperationRecord(previous)
@@ -80,11 +76,7 @@ class DefaultDaemonCache() extends DaemonCache with Logging {
     }
   }
 
-  def getNextBatchAccountOperations(
-    next: UUID,
-    fullOp: Int,
-    accountInfo: AccountInfo
-  )(implicit ec: ExecutionContext): Future[PackedOperationsView] = {
+  def getNextBatchAccountOperations(next: UUID, fullOp: Int, accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[PackedOperationsView] = {
     withAccountAndWalletAndPool(accountInfo) {
       case (account, wallet, pool) =>
         val candidate = opsCache.getOperationCandidate(next)
@@ -130,10 +122,10 @@ object DefaultDaemonCache extends Logging {
     private[this] val cachedPools: concurrent.Map[String, Pool] = new ConcurrentHashMap[String, Pool]().asScala
     private[this] val self = this
 
-    def sync()(implicit ec: ExecutionContext): Future[Seq[SynchronizationResult]] = {
-      pools().flatMap { pls =>
+    def sync(implicit ec: ExecutionContext): Future[Seq[SynchronizationResult]] = {
+      pools.flatMap { pls =>
         Future.sequence(pls.map { p =>
-          p.sync()
+          p.sync
         }).map(_.flatten)
       }
     }
@@ -210,7 +202,7 @@ object DefaultDaemonCache extends Logging {
       * @return the resulting pools. The result may contain less entities
       *         than the cached entities.
       */
-    def pools()(implicit ec: ExecutionContext): Future[Seq[Pool]] = for {
+    def pools(implicit ec: ExecutionContext): Future[Seq[Pool]] = for {
       poolDtos <- dbDao.getPools(id)
       pools <- Future.sequence(poolDtos.map { pool => toCacheAndStartListen(pool, pool.id.get) })
     } yield pools

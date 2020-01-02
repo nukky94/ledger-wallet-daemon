@@ -1,5 +1,9 @@
 package co.ledger.wallet.daemon.models
 
+import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.collection.JavaConverters._
+
 import java.util.{Calendar, Date}
 
 import cats.instances.future._
@@ -24,10 +28,6 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.google.common.primitives.UnsignedInteger
 import com.twitter.inject.Logging
 import co.ledger.wallet.daemon.utils.Utils.RichBigInt
-
-import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.collection.JavaConverters._
 
 object Account extends Logging {
 
@@ -182,13 +182,7 @@ object Account extends Logging {
       opsCount <- operationCounts(a)
     } yield AccountView(walletName, a.getIndex, b, opsCount, a.getRestoreKey, cv)
 
-  def broadcastBTCTransaction(
-    rawTx: Array[Byte],
-    signatures: Seq[BTCSigPub],
-    currentHeight: Long,
-    a: core.Account,
-    c: core.Currency
-  ): Future[String] = {
+  def broadcastBTCTransaction(rawTx: Array[Byte], signatures: Seq[BTCSigPub], currentHeight: Long, a: core.Account, c: core.Currency): Future[String] = {
     c.parseUnsignedBTCTransaction(rawTx, currentHeight) match {
       case Right(tx) =>
         if (tx.getInputs.size != signatures.size) Future.failed(SignatureSizeUnmatchException(tx.getInputs.size(), signatures.size))
@@ -204,12 +198,7 @@ object Account extends Logging {
     }
   }
 
-  def broadcastETHTransaction(
-    rawTx: Array[Byte],
-    signature: ETHSignature,
-    a: core.Account,
-    c: core.Currency
-  )(implicit ec: ExecutionContext): Future[String] = {
+  def broadcastETHTransaction(rawTx: Array[Byte], signature: ETHSignature, a: core.Account, c: core.Currency)(implicit ec: ExecutionContext): Future[String] = {
     c.parseUnsignedETHTransaction(rawTx) match {
       case Right(tx) =>
         // calculate the v from chain id
@@ -227,12 +216,7 @@ object Account extends Logging {
     }
   }
 
-  def broadcastXRPTransaction(
-    rawTx: Array[Byte],
-    signature: XRPSignature,
-    a: core.Account,
-    c: core.Currency
-  ): Future[String] = {
+  def broadcastXRPTransaction(rawTx: Array[Byte], signature: XRPSignature, a: core.Account, c: core.Currency): Future[String] = {
     c.parseUnsignedXRPTransaction(rawTx) match {
       case Right(tx) =>
         tx.setDERSignature(signature)
@@ -243,11 +227,7 @@ object Account extends Logging {
     }
   }
 
-  private def createBTCTransaction(
-    ti: BTCTransactionInfo,
-    a: core.Account,
-    c: core.Currency
-  )(implicit ec: ExecutionContext): Future[TransactionView] = {
+  private def createBTCTransaction(ti: BTCTransactionInfo, a: core.Account, c: core.Currency)(implicit ec: ExecutionContext): Future[TransactionView] = {
     val partial: Boolean = ti.partialTx.getOrElse(false)
     for {
       feesPerByte <- ti.feeAmount match {
@@ -263,11 +243,7 @@ object Account extends Logging {
     } yield v
   }
 
-  private def createETHTransaction(
-    ti: ETHTransactionInfo,
-    a: core.Account,
-    c: core.Currency
-  )(implicit ec: ExecutionContext): Future[TransactionView] = {
+  private def createETHTransaction(ti: ETHTransactionInfo, a: core.Account, c: core.Currency)(implicit ec: ExecutionContext): Future[TransactionView] = {
     for {
       transactionBuilder <- ti.contract match {
         case Some(contract) => erc20TransactionBuilder(ti, a, c, contract)
@@ -281,11 +257,7 @@ object Account extends Logging {
     } yield UnsignedEthereumTransactionView(v)
   }
 
-  private def ethereumTransactionBuilder(
-    ti: ETHTransactionInfo,
-    a: core.Account,
-    c: core.Currency
-  )(implicit ec: ExecutionContext): Future[EthereumLikeTransactionBuilder] = {
+  private def ethereumTransactionBuilder(ti: ETHTransactionInfo, a: core.Account, c: core.Currency)(implicit ec: ExecutionContext): Future[EthereumLikeTransactionBuilder] = {
     for {
       gasLimit <- ti.gasLimit match {
         case Some(amount) => Future.successful(amount)
@@ -299,12 +271,7 @@ object Account extends Logging {
     }
   }
 
-  private def erc20TransactionBuilder(
-    ti: ETHTransactionInfo,
-    a: core.Account,
-    c: core.Currency,
-    contract: String
-  )(implicit ec: ExecutionContext): Future[EthereumLikeTransactionBuilder] = {
+  private def erc20TransactionBuilder(ti: ETHTransactionInfo, a: core.Account, c: core.Currency, contract: String)(implicit ec: ExecutionContext): Future[EthereumLikeTransactionBuilder] = {
     a.asEthereumLikeAccount().getERC20Accounts.asScala.find(_.getToken.getContractAddress == contract) match {
       case Some(erc20Account) =>
         for {
@@ -328,11 +295,7 @@ object Account extends Logging {
     }
   }
 
-  private def createXRPTransaction(
-    ti: XRPTransactionInfo,
-    a: core.Account,
-    c: core.Currency
-  )(implicit ec: ExecutionContext): Future[TransactionView] = {
+  private def createXRPTransaction(ti: XRPTransactionInfo, a: core.Account, c: core.Currency)(implicit ec: ExecutionContext): Future[TransactionView] = {
     val builder = a.asRippleLikeAccount().buildTransaction()
     ti.sendTo.foreach(sendTo => builder.sendToAddress(c.convertAmount(sendTo.amount), sendTo.address))
     ti.wipeTo.foreach(builder.wipeToAddress)
@@ -346,11 +309,7 @@ object Account extends Logging {
     } yield view
   }
 
-  def createTransaction(
-    transactionInfo: TransactionInfo,
-    a: core.Account,
-    c: core.Currency
-  )(implicit ec: ExecutionContext): Future[TransactionView] = {
+  def createTransaction(transactionInfo: TransactionInfo, a: core.Account, c: core.Currency)(implicit ec: ExecutionContext): Future[TransactionView] = {
     (transactionInfo, c.getWalletType) match {
       case (ti: BTCTransactionInfo, WalletType.BITCOIN) => createBTCTransaction(ti, a, c)
       case (ti: ETHTransactionInfo, WalletType.ETHEREUM) => createETHTransaction(ti, a, c)
@@ -374,12 +333,7 @@ object Account extends Logging {
       .map { ops => ops.asScala.toList.headOption }
   }
 
-  def operations(
-    offset: Long,
-    batch: Int,
-    fullOp: Int,
-    query: OperationQuery
-  )(implicit ec: ExecutionContext): Future[Seq[core.Operation]] = {
+  def operations(offset: Long, batch: Int, fullOp: Int, query: OperationQuery)(implicit ec: ExecutionContext): Future[Seq[core.Operation]] = {
     (if (fullOp > 0) {
       query.addOrder(OperationOrderKey.DATE, true).offset(offset).limit(batch).complete().execute()
     } else {
@@ -387,24 +341,14 @@ object Account extends Logging {
     }).map { operations => operations.asScala.toList }
   }
 
-  def balances(
-    start: String,
-    end: String,
-    timePeriod: core.TimePeriod,
-    a: core.Account
-  )(implicit ec: ExecutionContext): Future[List[scala.BigInt]] = {
+  def balances(start: String, end: String, timePeriod: core.TimePeriod, a: core.Account)(implicit ec: ExecutionContext): Future[List[scala.BigInt]] = {
     a.getBalanceHistory(start, end, timePeriod).map { balances =>
       balances.asScala.toList.map { ba => ba.toBigInt.asScala }
     }
   }
 
   // TODO: refactor this part once lib-core provides the feature
-  def operationsCounts(
-    start: Date,
-    end: Date,
-    timePeriod: core.TimePeriod,
-    a: core.Account
-  )(implicit ec: ExecutionContext): Future[List[Map[core.OperationType, Int]]] = {
+  def operationsCounts(start: Date, end: Date, timePeriod: core.TimePeriod, a: core.Account)(implicit ec: ExecutionContext): Future[List[Map[core.OperationType, Int]]] = {
     a.queryOperations().addOrder(OperationOrderKey.DATE, true).partial().execute().map { operations =>
       val ops = operations.asScala.toList.filter(op => op.getDate.compareTo(start) >= 0 && op.getDate.compareTo(end) <= 0)
       filter(start, 1, end, standardTimePeriod(timePeriod), ops, Nil)
@@ -412,13 +356,7 @@ object Account extends Logging {
   }
 
   // TODO: refactor this part once lib-core provides the feature
-  def ERC20operationsCounts(
-    start: Date,
-    end: Date,
-    timePeriod: core.TimePeriod,
-    a: core.Account,
-    contract_address: String
-  )(implicit ec: ExecutionContext): Future[List[Map[core.OperationType, Int]]] = {
+  def ERC20operationsCounts(start: Date, end: Date, timePeriod: core.TimePeriod, a: core.Account, contract_address: String)(implicit ec: ExecutionContext): Future[List[Map[core.OperationType, Int]]] = {
     val sorted_ops = for {
       operations <- a.erc20Operations(contract_address)
     } yield operations.map(_._1).sortBy(_.getDate)

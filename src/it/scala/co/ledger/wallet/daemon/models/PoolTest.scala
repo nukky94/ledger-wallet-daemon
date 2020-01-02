@@ -1,13 +1,13 @@
 package co.ledger.wallet.daemon.models
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.database.PoolDto
 import co.ledger.wallet.daemon.utils.NativeLibLoader
 import org.junit.Test
 import org.scalatest.junit.AssertionsForJUnit
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 
 class PoolTest extends AssertionsForJUnit {
 
@@ -42,7 +42,7 @@ class PoolTest extends AssertionsForJUnit {
     assert(count == 1)
     assert(wallets.size == 1)
     assert(List((wallet.getName, wallet.getCurrency.getName)) == wallets.map( w => (w.getName, w.getCurrency.getName)))
-    assert(Await.result(testPool.sync(), Duration.Inf).isEmpty)
+    assert(Await.result(testPool.sync, Duration.Inf).isEmpty)
   }
 
 }

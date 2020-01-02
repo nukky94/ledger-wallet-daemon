@@ -1,21 +1,17 @@
 package co.ledger.wallet.daemon.services
 
+import scala.concurrent.{ExecutionContext, Future}
+
+import javax.inject.{Inject, Singleton}
+
 import co.ledger.wallet.daemon.database._
 import co.ledger.wallet.daemon.models.Wallet._
 import co.ledger.wallet.daemon.models.{PoolInfo, WalletInfo, WalletView, WalletsViewWithCount}
-import javax.inject.{Inject, Singleton}
-
-import scala.concurrent.{ExecutionContext, Future}
-
 
 @Singleton
 class WalletsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
 
-  def wallets(
-    offset: Int,
-    bulkSize: Int,
-    poolInfo: PoolInfo
-  )(implicit ec: ExecutionContext): Future[WalletsViewWithCount] = {
+  def wallets(offset: Int, bulkSize: Int, poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[WalletsViewWithCount] = {
     daemonCache.getWallets(offset, bulkSize, poolInfo).flatMap { pair =>
       Future.sequence(pair._2.map(_.walletView)).map(WalletsViewWithCount(pair._1, _))
     }

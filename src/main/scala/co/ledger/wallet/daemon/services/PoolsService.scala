@@ -1,6 +1,11 @@
 package co.ledger.wallet.daemon.services
 
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Try}
+
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.{Inject, Singleton}
 
 import co.ledger.wallet.daemon.database.DaemonCache
 import co.ledger.wallet.daemon.database.DefaultDaemonCache.User
@@ -9,11 +14,6 @@ import co.ledger.wallet.daemon.models.Account._
 import co.ledger.wallet.daemon.models.Wallet._
 import co.ledger.wallet.daemon.models.{PoolInfo, WalletPoolView}
 import co.ledger.wallet.daemon.schedulers.observers.SynchronizationResult
-import javax.inject.{Inject, Singleton}
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Try}
 
 @Singleton
 class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
@@ -52,14 +52,14 @@ class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
     *
     * @return a Future of sequence of result of synchronization.
     */
-  def syncOperations()(implicit ec: ExecutionContext): Future[Seq[Try[SynchronizationResult]]] = {
+  def syncOperations(implicit ec: ExecutionContext): Future[Seq[Try[SynchronizationResult]]] = {
     if (syncOnGoing.get()) {
       Future.failed(SyncOnGoingException())
     } else {
       syncOnGoing.set(true)
       val accountsFuture = for {
         users <- daemonCache.getUsers
-        pools <- Future.sequence(users.map(_.pools())).map(_.flatten)
+        pools <- Future.sequence(users.map(_.pools)).map(_.flatten)
         wallets <- Future.sequence(pools.map { p =>
           for {
             wallets <- p.wallets
@@ -96,7 +96,7 @@ class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
     * @return a Future of sequence of result of synchronization.
     */
   def syncOperations(poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Seq[SynchronizationResult]] =
-    daemonCache.withWalletPool(poolInfo)(_.sync())
+    daemonCache.withWalletPool(poolInfo)(_.sync)
 
 }
 

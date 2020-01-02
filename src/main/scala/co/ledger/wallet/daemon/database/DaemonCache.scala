@@ -1,5 +1,7 @@
 package co.ledger.wallet.daemon.database
 
+import scala.concurrent.{ExecutionContext, Future}
+
 import java.util.UUID
 
 import co.ledger.core.{Account, Currency, Wallet}
@@ -9,8 +11,6 @@ import co.ledger.wallet.daemon.models.Account._
 import co.ledger.wallet.daemon.models.Operations.PackedOperationsView
 import co.ledger.wallet.daemon.models.Wallet._
 import co.ledger.wallet.daemon.models._
-
-import scala.concurrent.{ExecutionContext, Future}
 
 trait DaemonCache {
 
@@ -47,11 +47,7 @@ trait DaemonCache {
 
   def getNextBatchAccountOperations(next: UUID, fullOp: Int, accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[PackedOperationsView]
 
-  def getPreviousBatchAccountOperations(
-    previous: UUID,
-    fullOp: Int,
-    accountInfo: AccountInfo
-  )(implicit ec: ExecutionContext): Future[PackedOperationsView]
+  def getPreviousBatchAccountOperations(previous: UUID, fullOp: Int, accountInfo: AccountInfo)(implicit ec: ExecutionContext): Future[PackedOperationsView]
 
   // ************** currency ************
   def getCurrency(currencyName: String, poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Option[Currency]] =
@@ -101,7 +97,7 @@ trait DaemonCache {
   }
 
   def getWalletPools(pubKey: String)(implicit ec: ExecutionContext): Future[Seq[Pool]] =
-    withUser(pubKey)(_.pools())
+    withUser(pubKey)(_.pools)
 
   def deleteWalletPool(poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Unit] =
     withUser(poolInfo.pubKey)(_.deletePool(poolInfo.poolName))
@@ -116,7 +112,7 @@ trait DaemonCache {
 
   def createUser(pubKey: String, permissions: Int)(implicit ec: ExecutionContext): Future[Long]
 
-  def getUsers()(implicit ec: ExecutionContext): Future[Seq[User]]
+  def getUsers(implicit ec: ExecutionContext): Future[Seq[User]]
 
   def getUser(pubKey: String)(implicit ec: ExecutionContext): Future[Option[User]]
 }

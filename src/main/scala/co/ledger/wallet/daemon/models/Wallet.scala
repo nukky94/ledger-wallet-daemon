@@ -1,5 +1,9 @@
 package co.ledger.wallet.daemon.models
 
+import scala.collection.JavaConverters._
+import scala.collection._
+import scala.concurrent.{ExecutionContext, Future}
+
 import co.ledger.core
 import co.ledger.core.implicits._
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
@@ -12,10 +16,6 @@ import co.ledger.wallet.daemon.utils.HexUtils
 import co.ledger.wallet.daemon.utils.Utils._
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.twitter.inject.Logging
-
-import scala.collection.JavaConverters._
-import scala.collection._
-import scala.concurrent.{ExecutionContext, Future}
 
 object Wallet extends Logging {
 

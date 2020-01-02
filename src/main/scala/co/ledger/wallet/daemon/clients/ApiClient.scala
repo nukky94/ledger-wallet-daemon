@@ -1,5 +1,10 @@
 package co.ledger.wallet.daemon.clients
 
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
+
+import javax.inject.Singleton
+
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.models.FeeMethod
 import co.ledger.wallet.daemon.utils.HexUtils
@@ -10,10 +15,6 @@ import com.twitter.finagle.{Http, Service}
 import com.twitter.finatra.json.FinatraObjectMapper
 import com.twitter.inject.Logging
 import io.circe.Json
-import javax.inject.Singleton
-
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 
 // TODO: Map response from service to be more readable
 @Singleton

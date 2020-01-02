@@ -1,8 +1,8 @@
 package co.ledger.wallet.daemon.async
 
-import org.slf4j.MDC
-
 import scala.concurrent.ExecutionContext
+
+import org.slf4j.MDC
 
 /**
   * Customized execution context to allow logback to propagate tracing information

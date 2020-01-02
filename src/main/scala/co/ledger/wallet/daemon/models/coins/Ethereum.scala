@@ -1,5 +1,7 @@
 package co.ledger.wallet.daemon.models.coins
 
+import scala.collection.JavaConverters._
+
 import java.util.Date
 
 import co.ledger.core._
@@ -7,8 +9,6 @@ import co.ledger.wallet.daemon.models.coins.Coin.{NetworkParamsView, Transaction
 import co.ledger.wallet.daemon.utils.HexUtils
 import com.fasterxml.jackson.annotation.JsonProperty
 import co.ledger.wallet.daemon.utils.Utils.RichBigInt
-
-import scala.collection.JavaConverters._
 
 case class EthereumNetworkParamView(
                                      @JsonProperty("identifier") identifier: String,

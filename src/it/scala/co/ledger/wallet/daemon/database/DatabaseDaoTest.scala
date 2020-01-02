@@ -1,5 +1,8 @@
 package co.ledger.wallet.daemon.database
 
+import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.duration.Duration
+
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.exceptions.{DaemonDatabaseException, UserAlreadyExistException}
@@ -9,9 +12,6 @@ import org.junit.Assert._
 import org.junit.{BeforeClass, Test}
 import org.scalatest.junit.AssertionsForJUnit
 import slick.jdbc.JdbcBackend.Database
-
-import scala.concurrent.{Await, ExecutionContext}
-import scala.concurrent.duration.Duration
 
 class DatabaseDaoTest extends AssertionsForJUnit {
 

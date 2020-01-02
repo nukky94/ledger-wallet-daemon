@@ -1,13 +1,14 @@
 package co.ledger.wallet.daemon.services
 
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
+
+import javax.inject.{Inject, Singleton}
+
 import co.ledger.wallet.daemon.database.DaemonCache
 import co.ledger.wallet.daemon.exceptions.CurrencyNotFoundException
 import co.ledger.wallet.daemon.models.Currency._
 import co.ledger.wallet.daemon.models._
-import javax.inject.{Inject, Singleton}
-
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 
 @Singleton
 class CurrenciesService @Inject()(daemonCache: DaemonCache) extends DaemonService {
@@ -25,11 +26,7 @@ class CurrenciesService @Inject()(daemonCache: DaemonCache) extends DaemonServic
     }
   }
 
-  def validateAddress(
-    address: String,
-    currencyName: String,
-    poolInfo: PoolInfo
-  )(implicit ec: ExecutionContext): Future[Boolean] = {
+  def validateAddress(address: String, currencyName: String, poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[Boolean] = {
     daemonCache.getCurrency(currencyName, poolInfo).flatMap {
       case Some(currency) => Future(currency.validateAddress(address))
       case None => Future.failed(CurrencyNotFoundException(currencyName))

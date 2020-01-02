@@ -1,9 +1,9 @@
 package co.ledger.wallet.daemon.schedulers.observers
 
+import scala.concurrent.Promise
+
 import co.ledger.core.{Event, EventCode, EventReceiver}
 import com.twitter.inject.Logging
-
-import scala.concurrent.Promise
 
 class SynchronizationEventReceiver(
                                     accountIndex: Int,

@@ -1,5 +1,8 @@
 package co.ledger.wallet.daemon.models
 
+import scala.collection.JavaConverters._
+import scala.concurrent.{ExecutionContext, Future}
+
 import java.util.{Date, UUID}
 
 import co.ledger.core
@@ -9,9 +12,6 @@ import co.ledger.wallet.daemon.models.coins.Coin.TransactionView
 import co.ledger.wallet.daemon.models.coins.EthereumTransactionView.ERC20
 import co.ledger.wallet.daemon.models.coins.{Bitcoin, EthereumTransactionView, RippleTransactionView}
 import com.fasterxml.jackson.annotation.JsonProperty
-
-import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
 
 object Operations {
   def confirmations(operation: core.Operation, wallet: core.Wallet)(implicit ec: ExecutionContext): Future[Long] = {
@@ -23,12 +23,7 @@ object Operations {
     }
   }
 
-  def getErc20View(
-    erc20Operation: core.ERC20LikeOperation,
-    operation: core.Operation,
-    wallet: core.Wallet,
-    account: core.Account
-  )(implicit ec: ExecutionContext): Future[OperationView] = {
+  def getErc20View(erc20Operation: core.ERC20LikeOperation, operation: core.Operation, wallet: core.Wallet, account: core.Account)(implicit ec: ExecutionContext): Future[OperationView] = {
     getView(operation, wallet, account).map {view =>
       val tvOpt = view.transaction.map {
           case e: EthereumTransactionView => e.copy(erc20 = Some(ERC20.from(erc20Operation)))
@@ -38,11 +33,7 @@ object Operations {
     }
   }
 
-  def getView(
-    operation: core.Operation,
-    wallet: core.Wallet,
-    account: core.Account
-  )(implicit ec: ExecutionContext): Future[OperationView] = {
+  def getView(operation: core.Operation, wallet: core.Wallet, account: core.Account)(implicit ec: ExecutionContext): Future[OperationView] = {
     val height: Long = operation.getBlockHeight
     for {
       confirms <- confirmations(operation, wallet)

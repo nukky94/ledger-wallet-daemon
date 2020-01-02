@@ -1,12 +1,12 @@
 package co.ledger.wallet.daemon.models
 
+import scala.collection.JavaConverters._
+
 import co.ledger.core
 import co.ledger.wallet.daemon.exceptions.CurrencyNotSupportedException
 import co.ledger.wallet.daemon.models.coins.Coin.NetworkParamsView
 import co.ledger.wallet.daemon.models.coins.{Bitcoin, EthereumNetworkParamView, RippleNetworkParamView}
 import com.fasterxml.jackson.annotation.JsonProperty
-
-import scala.collection.JavaConverters._
 
 object Currency {
   implicit class RichCoreCurrency(val c: core.Currency) extends AnyVal {

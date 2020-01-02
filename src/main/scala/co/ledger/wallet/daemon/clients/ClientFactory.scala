@@ -1,10 +1,10 @@
 package co.ledger.wallet.daemon.clients
 
+import scala.concurrent.ExecutionContext
+
 import java.util.concurrent.{Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 
 import co.ledger.wallet.daemon.libledger_core.async.ScalaThreadDispatcher
-
-import scala.concurrent.ExecutionContext
 
 object ClientFactory {
   private[this] val apiC: ApiClient = new ApiClient()(

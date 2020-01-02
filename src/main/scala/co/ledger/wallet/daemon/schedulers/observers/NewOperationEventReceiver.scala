@@ -1,10 +1,10 @@
 package co.ledger.wallet.daemon.schedulers.observers
 
+import scala.util.{Failure, Success, Try}
+
 import co.ledger.core._
 import co.ledger.wallet.daemon.database.OperationCache
 import com.twitter.inject.Logging
-
-import scala.util.{Failure, Success, Try}
 
 class NewOperationEventReceiver(private val poolId: Long, private val opsCache: OperationCache) extends EventReceiver with Logging {
   private val self = this

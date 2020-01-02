@@ -1,10 +1,10 @@
 package co.ledger.wallet.daemon.libledger_core.async
 
+import scala.concurrent.ExecutionContext
+
 import java.util.concurrent.ConcurrentHashMap
 
 import co.ledger.core.{Lock, ThreadDispatcher}
-
-import scala.concurrent.ExecutionContext
 
 class ScalaThreadDispatcher(mainContext: ExecutionContext) extends ThreadDispatcher {
   private val _mainContext = LedgerCoreExecutionContext(mainContext)

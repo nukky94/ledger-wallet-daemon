@@ -1,20 +1,19 @@
 package co.ledger.wallet.daemon.database
 
+import scala.collection._
+import scala.collection.JavaConverters._
+
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.ConcurrentHashMap
+import javax.inject.Singleton
 
+import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.exceptions.OperationNotFoundException
 import co.ledger.wallet.daemon.services.LogMsgMaker
 import com.twitter.inject.Logging
-import javax.inject.Singleton
-import java.util.concurrent.ConcurrentHashMap
-import scala.collection.JavaConverters._
-import java.time.Duration
-
 import com.google.common.cache.CacheBuilder
-
-import scala.collection._
-import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 
 @Singleton
 class OperationCache extends Logging {

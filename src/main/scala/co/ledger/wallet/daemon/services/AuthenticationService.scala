@@ -1,9 +1,11 @@
 package co.ledger.wallet.daemon.services
 
+import scala.concurrent.ExecutionContext
+
 import java.nio.charset.StandardCharsets
 import java.util.Date
-
 import javax.inject.{Inject, Singleton}
+
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.database.DaemonCache
 import co.ledger.wallet.daemon.database.DefaultDaemonCache.User
@@ -13,8 +15,6 @@ import co.ledger.wallet.daemon.utils.Utils._
 import com.twitter.finagle.http.Request
 import com.twitter.util.Future
 import org.bitcoinj.core.Sha256Hash
-
-import scala.concurrent.ExecutionContext
 
 @Singleton
 class AuthenticationService @Inject()(daemonCache: DaemonCache, ecdsa: ECDSAService) extends DaemonService {

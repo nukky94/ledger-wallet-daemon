@@ -1,5 +1,9 @@
 package co.ledger.wallet.daemon.controllers
 
+import scala.concurrent.ExecutionContext
+
+import javax.inject.Inject
+
 import co.ledger.core.RippleLikeMemo
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.controllers.requests.{CommonMethodValidations, RequestWithUser}
@@ -10,9 +14,6 @@ import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.Controller
 import com.twitter.finatra.request.RouteParam
 import com.twitter.finatra.validation.{MethodValidation, ValidationResult}
-import javax.inject.Inject
-
-import scala.concurrent.ExecutionContext
 
 class TransactionsController @Inject()(transactionsService: TransactionsService) extends Controller {
 

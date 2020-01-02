@@ -1,5 +1,8 @@
 package co.ledger.wallet.daemon.database
 
+import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.duration.Duration
+
 import java.util.UUID
 
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
@@ -12,9 +15,6 @@ import co.ledger.wallet.daemon.utils.NativeLibLoader
 import org.junit.Assert._
 import org.junit.{BeforeClass, Test}
 import org.scalatest.junit.AssertionsForJUnit
-
-import scala.concurrent.{Await, ExecutionContext}
-import scala.concurrent.duration.Duration
 
 class DaemonCacheTest extends AssertionsForJUnit {
 

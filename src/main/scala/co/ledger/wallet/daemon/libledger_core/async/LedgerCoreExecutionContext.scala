@@ -1,15 +1,15 @@
 package co.ledger.wallet.daemon.libledger_core.async
 
+import scala.concurrent.ExecutionContext
+
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{Executors, LinkedBlockingQueue, ThreadFactory, ThreadPoolExecutor, TimeUnit}
 import java.util.{Timer, TimerTask}
 
 import co.ledger.core
-
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
-import scala.concurrent.ExecutionContext
 
-class LedgerCoreExecutionContext(val ec: ExecutionContext) extends co.ledger.core.ExecutionContext {
+class LedgerCoreExecutionContext(ec: ExecutionContext) extends co.ledger.core.ExecutionContext {
 
   override def execute(runnable: core.Runnable): Unit = ec.execute(() => runnable.run())
 

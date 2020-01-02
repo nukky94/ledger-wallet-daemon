@@ -1,6 +1,11 @@
 package co.ledger.wallet.daemon.modules
 
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Success}
+
 import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
 
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
@@ -11,11 +16,6 @@ import com.google.inject.Provides
 import com.twitter.concurrent.NamedPoolThreadFactory
 import com.twitter.inject.{Injector, TwitterModule}
 import com.twitter.util.{Duration, ScheduledThreadPoolTimer, Time}
-import javax.inject.Singleton
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Success}
 
 object DaemonCacheModule extends TwitterModule {
 
@@ -36,7 +36,7 @@ object DaemonCacheModule extends TwitterModule {
 
     def synchronizationTask(): Unit = {
       try {
-        Await.result(poolsService.syncOperations(), 1.hour).foreach{
+        Await.result(poolsService.syncOperations, 1.hour).foreach{
           case Success(r) =>
             if (r.syncResult) {
               info(s"Synchronization complete for $r")
@@ -85,7 +85,7 @@ object DaemonCacheModule extends TwitterModule {
   private def updateWalletConfig()(implicit ec: ExecutionContext): Future[Unit] = {
     for {
       users <- provideDaemonCache.getUsers
-      pools <- Future.traverse(users)(_.pools()).map(_.flatten)
+      pools <- Future.traverse(users)(_.pools).map(_.flatten)
       poolWallets <- Future.traverse(pools)(pool => pool.wallets.map((pool, _)))
       _ <- Future.sequence(poolWallets.flatMap { case (pool, wallets) => wallets.map(pool.updateWalletConfig) })
     } yield ()

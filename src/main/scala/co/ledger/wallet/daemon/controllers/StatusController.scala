@@ -1,6 +1,5 @@
 package co.ledger.wallet.daemon.controllers
 
-
 import co.ledger.core.LedgerCore
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import com.twitter.finagle.http.Request

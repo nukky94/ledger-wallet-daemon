@@ -1,5 +1,8 @@
 package co.ledger.wallet.daemon.models.coins
 
+import scala.collection.JavaConverters._
+import scala.concurrent.{ExecutionContext, Future}
+
 import java.util.Date
 
 import co.ledger.core
@@ -7,9 +10,6 @@ import co.ledger.core.implicits._
 import co.ledger.wallet.daemon.models.coins.Coin._
 import co.ledger.wallet.daemon.utils.HexUtils
 import com.fasterxml.jackson.annotation.JsonProperty
-
-import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
 
 object Bitcoin {
   val currencyFamily = core.WalletType.BITCOIN

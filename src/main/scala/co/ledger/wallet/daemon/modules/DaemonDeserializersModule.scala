@@ -1,5 +1,7 @@
 package co.ledger.wallet.daemon.modules
 
+import scala.collection.JavaConverters._
+
 import co.ledger.core
 import co.ledger.wallet.daemon.models.coins.{BitcoinNetworkParamsView, EthereumNetworkParamView, RippleNetworkParamView}
 import co.ledger.wallet.daemon.models.{CurrencyView, WalletView, UnitView => ModelUnit}
@@ -8,8 +10,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{DeserializationContext, JsonDeserializer, JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
-
-import scala.collection.JavaConverters._
 
 class DaemonDeserializersModule extends SimpleModule {
   addDeserializer(classOf[CurrencyView], new Deserializers.CurrencyDeserializer)

@@ -8,7 +8,6 @@ import com.twitter.inject.Logging
 import org.junit.Test
 import org.scalatest.junit.AssertionsForJUnit
 
-
 class ScalaWebSocketClientTest extends AssertionsForJUnit {
 
   @Test def verifyThreadedConnection(): Unit = {

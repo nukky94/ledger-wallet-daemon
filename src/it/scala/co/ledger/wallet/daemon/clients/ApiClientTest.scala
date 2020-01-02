@@ -1,10 +1,10 @@
 package co.ledger.wallet.daemon.clients
 
-import org.junit.Test
-import org.scalatest.junit.AssertionsForJUnit
-
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+
+import org.junit.Test
+import org.scalatest.junit.AssertionsForJUnit
 
 class ApiClientTest extends AssertionsForJUnit {
   private[this] val apiClient = ClientFactory.apiClient
