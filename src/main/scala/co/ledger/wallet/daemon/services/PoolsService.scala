@@ -1,7 +1,6 @@
 package co.ledger.wallet.daemon.services
 
-import java.util.concurrent.{Executors, ThreadFactory}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
 import co.ledger.wallet.daemon.database.DaemonCache
@@ -15,7 +14,7 @@ import co.ledger.wallet.daemon.utils.FutureUtils
 import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 @Singleton
@@ -72,26 +71,12 @@ class PoolsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
         }).map(_.flatten)
       } yield accounts
 
-      // custom ec to avoid thread starvation in the global ec
-      val fullSyncEc: ExecutionContext = ExecutionContext.fromExecutor(
-        Executors.newCachedThreadPool(
-          new ThreadFactory {
-            private val counter = new AtomicLong(0L)
-            def newThread(r: Runnable) = {
-              val th = new Thread(r)
-              th.setName(s"full-sync-operations-thread-${counter.getAndIncrement.toString}")
-              th
-            }
-          }
-        )
-      )
-
       val resultFuture = accountsFuture.flatMap { accounts =>
         Future.sequence(
           accounts.map {
             case (poolName, walletName, a) =>
               FutureUtils
-                .withTimeout(a.sync(poolName, walletName)(fullSyncEc), 30.minutes)
+                .withTimeout(a.sync(poolName, walletName), 30.minutes)
                 .map(Success(_))
                 .recover {
                   case e: Throwable => Failure(AccountSyncException(poolName, walletName, a.getIndex, e))
