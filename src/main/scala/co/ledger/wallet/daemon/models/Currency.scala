@@ -59,7 +59,7 @@ object Currency {
     UnitView(coreUnit.getName, coreUnit.getSymbol, coreUnit.getCode, coreUnit.getNumberOfDecimal)
 
   private def newNetworkParamsView(coreCurrency: core.Currency): NetworkParamsView = coreCurrency.getWalletType match {
-    case core.WalletType.BITCOIN => Bitcoin.newNetworkParamsView(coreCurrency.getBitcoinLikeNetworkParameters)
+    case core.WalletType.BITCOIN => Bitcoin.newNetworkParamsView(coreCurrency.getName, coreCurrency.getBitcoinLikeNetworkParameters)
     case core.WalletType.ETHEREUM => EthereumNetworkParamView(coreCurrency.getEthereumLikeNetworkParameters)
     case core.WalletType.RIPPLE => RippleNetworkParamView(coreCurrency.getRippleLikeNetworkParameters)
     case _ => throw CurrencyNotSupportedException(coreCurrency.getName)

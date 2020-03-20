@@ -9,7 +9,7 @@ import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.gl
 import co.ledger.wallet.daemon.clients.ClientFactory
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.database.PoolDto
-import co.ledger.wallet.daemon.exceptions.{CoreDatabaseException, CurrencyNotFoundException, WalletNotFoundException}
+import co.ledger.wallet.daemon.exceptions.{CoreDatabaseException, CurrencyNotFoundException, UnsupportedNativeSegwitException, WalletNotFoundException}
 import co.ledger.wallet.daemon.libledger_core.async.LedgerCoreExecutionContext
 import co.ledger.wallet.daemon.libledger_core.crypto.SecureRandomRNG
 import co.ledger.wallet.daemon.libledger_core.debug.NoOpLogPrinter
@@ -130,19 +130,24 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
     }
   }
 
-  def addWalletIfNotExist(walletName: String, currencyName: String): Future[core.Wallet] = {
+  def addWalletIfNotExist(walletName: String, currencyName: String, isNativeSegwit: Boolean): Future[core.Wallet] = {
     coreP.getCurrency(currencyName).flatMap { coreC =>
-      coreP.createWallet(walletName, coreC, buildWalletConfig(currencyName)).flatMap { coreW =>
-        info(LogMsgMaker.newInstance("Wallet created").append("name", walletName).append("pool_name", name).append("currency_name", currencyName).toString())
-        startListen(coreW)
-      }.recoverWith {
-        case _: WalletAlreadyExistsException =>
-          warn(LogMsgMaker.newInstance("Wallet already exist")
-            .append("name", walletName)
-            .append("pool_name", name)
-            .append("currency_name", currencyName)
-            .toString())
-          coreP.getWallet(walletName).flatMap { coreW => startListen(coreW) }
+      buildWalletConfig(coreC, isNativeSegwit) match {
+        case Success(walletConfig) =>
+          coreP.createWallet(walletName, coreC, walletConfig).flatMap { coreW =>
+            info(LogMsgMaker.newInstance("Wallet created").append("name", walletName).append("pool_name", name).append("currency_name", currencyName).toString())
+            startListen(coreW)
+          }.recoverWith {
+            case _: WalletAlreadyExistsException =>
+              warn(LogMsgMaker.newInstance("Wallet already exist")
+                .append("name", walletName)
+                .append("pool_name", name)
+                .append("currency_name", currencyName)
+                .toString())
+              coreP.getWallet(walletName).flatMap { coreW => startListen(coreW) }
+          }
+
+        case Failure(e) => Future.failed(e)
       }
     }.recoverWith {
       case _: core.implicits.CurrencyNotFoundException => Future.failed(CurrencyNotFoundException(currencyName))
@@ -150,23 +155,31 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
   }
 
   def updateWalletConfig(wallet: core.Wallet): Future[core.Wallet] = {
-    val walletConfig = buildWalletConfig(wallet.getCurrency.getName)
-    info(LogMsgMaker.newInstance("Updating wallet")
-      .append("pool_name", name)
-      .append("wallet_name", wallet.getName)
-      .append("api_endpoint", walletConfig.getString("BLOCKCHAIN_EXPLORER_API_ENDPOINT"))
-      .append("ws_endpoint", walletConfig.getString("BLOCKCHAIN_OBSERVER_WS_ENDPOINT"))
-      .toString())
-    coreP.updateWalletConfig(wallet.getName, walletConfig) flatMap { result =>
-      info(LogMsgMaker.newInstance("Wallet update result")
-        .append("pool_name", name)
-        .append("wallet_name", wallet.getName)
-        .append("result", result)
-        .toString())
-      result match {
-        case ErrorCode.FUTURE_WAS_SUCCESSFULL => Future.successful(wallet)
-        case _ => Future.failed(WalletNotFoundException(wallet.getName))
-      }
+    val isNativeSegwit = Try(wallet.getConfiguration.getString("KEYCHAIN_ENGINE"))
+      .map(_ == "BIP173_P2WPKH")
+      .getOrElse(false)
+
+    buildWalletConfig(wallet.getCurrency, isNativeSegwit) match {
+      case Success(walletConfig) =>
+        info(LogMsgMaker.newInstance("Updating wallet")
+          .append("pool_name", name)
+          .append("wallet_name", wallet.getName)
+          .append("api_endpoint", walletConfig.getString("BLOCKCHAIN_EXPLORER_API_ENDPOINT"))
+          .append("ws_endpoint", walletConfig.getString("BLOCKCHAIN_OBSERVER_WS_ENDPOINT"))
+          .toString())
+        coreP.updateWalletConfig(wallet.getName, walletConfig).flatMap { result =>
+          info(LogMsgMaker.newInstance("Wallet update result")
+            .append("pool_name", name)
+            .append("wallet_name", wallet.getName)
+            .append("result", result)
+            .toString())
+          result match {
+            case ErrorCode.FUTURE_WAS_SUCCESSFULL => Future.successful(wallet)
+            case _ => Future.failed(WalletNotFoundException(wallet.getName))
+          }
+        }
+
+      case Failure(e) => Future.failed(e)
     }
   }
 
@@ -250,25 +263,38 @@ class Pool(private val coreP: core.WalletPool, val id: Long) extends Logging {
 
   override def toString: String = s"Pool(name: $name, id: $id)"
 
-  private def buildWalletConfig(currencyName: String): core.DynamicObject = {
-    val walletConfig = core.DynamicObject.newInstance()
-    val apiUrl = DaemonConfiguration.explorer.api.paths.get(currencyName) match {
-      case Some(path) =>
-        path.explorerVersion match {
-          case Some(version) =>
-            walletConfig.putString("BLOCKCHAIN_EXPLORER_VERSION", version)
-          case _ =>
-        }
-        new URL(s"${path.host}:${path.port}").toString
-      case None => ConfigurationDefaults.BLOCKCHAIN_DEFAULT_API_ENDPOINT
+  private def buildWalletConfig(currency: core.Currency, isNativeSegwit: Boolean): Try[core.DynamicObject] = {
+    val currencyName = currency.getName
+    val hasNativeSegwitSupport = DaemonConfiguration.supportedNativeSegwitCurrencies.contains(currencyName)
+
+    if (isNativeSegwit && !hasNativeSegwitSupport) {
+      Failure(UnsupportedNativeSegwitException(currencyName))
+    } else {
+      val walletConfig = core.DynamicObject.newInstance()
+      val apiUrl = DaemonConfiguration.explorer.api.paths.get(currencyName) match {
+        case Some(path) =>
+          path.explorerVersion match {
+            case Some(version) =>
+              walletConfig.putString("BLOCKCHAIN_EXPLORER_VERSION", version)
+            case _ =>
+          }
+          new URL(s"${path.host}:${path.port}").toString
+        case None => ConfigurationDefaults.BLOCKCHAIN_DEFAULT_API_ENDPOINT
+      }
+      walletConfig.putString("BLOCKCHAIN_EXPLORER_API_ENDPOINT", apiUrl)
+      val wsUrl = DaemonConfiguration.explorer.ws.getOrElse(currencyName, DaemonConfiguration.explorer.ws("default"))
+      walletConfig.putString("BLOCKCHAIN_OBSERVER_WS_ENDPOINT", wsUrl)
+      val disableSyncToken: Boolean = DaemonConfiguration.explorer.api.paths.get(currencyName).exists(_.disableSyncToken)
+      walletConfig.putBoolean("DEACTIVATE_SYNC_TOKEN", disableSyncToken)
+      walletConfig.putInt("RIPPLE_LAST_LEDGER_SEQUENCE_OFFSET", DaemonConfiguration.rippleLastLedgerSequenceOffset)
+
+      if (isNativeSegwit) {
+        walletConfig.putString("KEYCHAIN_ENGINE", "BIP173_P2WPKH")
+        walletConfig.putString("KEYCHAIN_DERIVATION_SCHEME", "84'/<coin_type>'/<account>'/<node>/<address>")
+      }
+
+      Success(walletConfig)
     }
-    walletConfig.putString("BLOCKCHAIN_EXPLORER_API_ENDPOINT", apiUrl)
-    val wsUrl = DaemonConfiguration.explorer.ws.getOrElse(currencyName, DaemonConfiguration.explorer.ws("default"))
-    walletConfig.putString("BLOCKCHAIN_OBSERVER_WS_ENDPOINT", wsUrl)
-    val disableSyncToken: Boolean = DaemonConfiguration.explorer.api.paths.get(currencyName).exists(_.disableSyncToken)
-    walletConfig.putBoolean("DEACTIVATE_SYNC_TOKEN", disableSyncToken)
-    walletConfig.putInt("RIPPLE_LAST_LEDGER_SEQUENCE_OFFSET", DaemonConfiguration.rippleLastLedgerSequenceOffset)
-    walletConfig
   }
 }
 

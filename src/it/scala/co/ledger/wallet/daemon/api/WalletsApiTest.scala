@@ -10,20 +10,44 @@ class WalletsApiTest extends APIFeatureTest {
 
   test("WalletsApi#Create then Get same wallet from pool Return OK") {
     createPool(WALLET_POOL)
-    val createdW =  walletFromResponse(assertWalletCreation(WALLET_POOL, "my_wallet", "bitcoin", Status.Ok))
+    val createdW = walletFromResponse(assertWalletCreation(WALLET_POOL, "my_wallet", "bitcoin", Status.Ok))
     assert("my_wallet" === createdW.name)
     assert("bitcoin" === createdW.currency.name)
-    val getW =  walletFromResponse(assertGetWallet(WALLET_POOL, "my_wallet", Status.Ok))
+    val getW = walletFromResponse(assertGetWallet(WALLET_POOL, "my_wallet", Status.Ok))
     assert(createdW === getW)
+    deletePool(WALLET_POOL)
+  }
+
+  test("WalletsApi#Create bitcoin native segwit wallet then Get same wallet from pool Return OK") {
+    createPool(WALLET_POOL)
+    val createdW = walletFromResponse(assertWalletNativeSegwitCreation(WALLET_POOL, "my_wallet_bitcoin_native_segwit", "bitcoin", Status.Ok))
+    assert("my_wallet_bitcoin_native_segwit" === createdW.name)
+    assert("bitcoin" === createdW.currency.name)
+    val getW = walletFromResponse(assertGetWallet(WALLET_POOL, "my_wallet_bitcoin_native_segwit", Status.Ok))
+    assert(createdW === getW)
+    deletePool(WALLET_POOL)
+  }
+
+  test("WalletsApi#Create native segwit wallet for unsupported currency Return Bad Request") {
+    createPool(WALLET_POOL)
+
+    val expectedErr = ErrorResponseBody(ErrorCode.Bad_Request, Map("response"->"Native segwit not supported for currency ethereum"))
+
+    val postWalletErr = server.mapper.objectMapper.readValue[ErrorResponseBody](
+      assertWalletNativeSegwitCreation(WALLET_POOL, "my_wallet_ethereum_native_segwit", "ethereum", Status.BadRequest).contentString
+    )
+    assert(postWalletErr.rc === expectedErr.rc)
+    assert(postWalletErr.msg.getOrElse("error_code", 0) === ErrorCodes.INVALID_CURRENCY_FOR_NATIVE_SEGWIT)
+
     deletePool(WALLET_POOL)
   }
 
   test("WalletsApi#Create then Get same wallet from pool Return OK (for bitcoin testnet)") {
     createPool(WALLET_POOL)
-    val createdW =  walletFromResponse(assertWalletCreation(WALLET_POOL, "my_testnet_wallet", "bitcoin_testnet", Status.Ok))
+    val createdW = walletFromResponse(assertWalletCreation(WALLET_POOL, "my_testnet_wallet", "bitcoin_testnet", Status.Ok))
     assert("my_testnet_wallet" === createdW.name)
     assert("bitcoin_testnet" === createdW.currency.name)
-    val getW =  walletFromResponse(assertGetWallet(WALLET_POOL, "my_testnet_wallet", Status.Ok))
+    val getW = walletFromResponse(assertGetWallet(WALLET_POOL, "my_testnet_wallet", Status.Ok))
     assert(createdW === getW)
     deletePool(WALLET_POOL)
   }

@@ -96,7 +96,7 @@ class CurrenciesApiTest extends APIFeatureTest {
       UnitView("milli-bitcoin","mBTC", "mBTC", 5),
       UnitView("micro-bitcoin", "μBTC", "μBTC", 2),
       ),
-    BitcoinNetworkParamsView("btc", "00", "05", "0488B21E", "PER_BYTE", 546, "Bitcoin signed message:\n", false)
+    BitcoinNetworkParamsView("btc", "00", "05", "0488B21E", "PER_BYTE", 546, "Bitcoin signed message:\n", false, true)
   )
 
 }

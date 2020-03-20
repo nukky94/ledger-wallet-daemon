@@ -45,7 +45,7 @@ class WalletsController @Inject()(walletsService: WalletsService) extends Contro
     */
   post("/pools/:pool_name/wallets") { request: CreateWalletRequest =>
     info(s"CREATE wallet $request")
-    walletsService.createWallet(request.currency_name, request.walletInfo)
+    walletsService.createWallet(request.currency_name, request.walletInfo, request.is_native_segwit)
   }
 
 }
@@ -86,6 +86,7 @@ object WalletsController {
                                   @RouteParam pool_name: String,
                                   @NotEmpty @JsonProperty wallet_name: String,
                                   @NotEmpty @JsonProperty currency_name: String,
+                                  @JsonProperty is_native_segwit: Boolean = false,
                                   request: Request
                                 ) extends RequestWithUser with WithWalletInfo {
     @MethodValidation

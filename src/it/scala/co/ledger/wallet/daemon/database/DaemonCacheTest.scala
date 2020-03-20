@@ -127,7 +127,7 @@ object DaemonCacheTest {
     Await.result(cache.createWalletPool(PoolInfo("pool_1", user2.get.pubKey), ""), Duration.Inf)
     Await.result(cache.createWalletPool(PoolInfo("pool_3", user2.get.pubKey), ""), Duration.Inf)
     Await.result(cache.createWalletPool(PoolInfo(POOL_NAME, user3.get.pubKey), ""), Duration.Inf)
-    Await.result(cache.createWallet("bitcoin", WalletInfo(WALLET_NAME, POOL_NAME, user3.get.pubKey)), Duration.Inf)
+    Await.result(cache.createWallet("bitcoin", WalletInfo(WALLET_NAME, POOL_NAME, user3.get.pubKey), isNativeSegwit = false), Duration.Inf)
     val walletInfo = WalletInfo(WALLET_NAME, POOL_NAME, user3.get.pubKey)
     Await.result(cache.withWallet(walletInfo){w =>
       w.addAccountIfNotExist(

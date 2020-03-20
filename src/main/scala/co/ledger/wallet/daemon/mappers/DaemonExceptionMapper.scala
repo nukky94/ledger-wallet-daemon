@@ -89,6 +89,11 @@ class DaemonExceptionMapper @Inject()(response: ResponseBuilder)
           daemonExceptionInfo(e),
           response
         )
+      case e: UnsupportedNativeSegwitException =>
+        ResponseSerializer.serializeBadRequest(request,
+          daemonExceptionInfo(e) + ("currency_name" -> e.currencyName),
+          response
+        )
       case e: InvalidEIP55Format =>
         ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(e),

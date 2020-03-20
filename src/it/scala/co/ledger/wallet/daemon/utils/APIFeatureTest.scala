@@ -13,13 +13,20 @@ import org.bitcoinj.core.Sha256Hash
 trait APIFeatureTest extends FeatureTest {
   override val server = new EmbeddedHttpServer(new ServerImpl)
 
-  def defaultHeaders = lwdBasicAuthorisationHeader("whitelisted")
+  def defaultHeaders: Map[String, String] = lwdBasicAuthorisationHeader("whitelisted")
 
   def parse[A](response: Response)(implicit manifest: Manifest[A]): A = server.mapper.parse[A](response)
 
   def assertWalletCreation(poolName: String, walletName: String, currencyName: String, expected: Status): Response = {
     server.httpPost(path = s"/pools/$poolName/wallets",
       postBody = s"""{\"currency_name\":\"$currencyName\",\"wallet_name\":\"$walletName\"}""",
+      headers = defaultHeaders,
+      andExpect = expected)
+  }
+
+  def assertWalletNativeSegwitCreation(poolName: String, walletName: String, currencyName: String, expected: Status): Response = {
+    server.httpPost(path = s"/pools/$poolName/wallets",
+      postBody = s"""{\"currency_name\":\"$currencyName\",\"wallet_name\":\"$walletName\",\"is_native_segwit\":true}""",
       headers = defaultHeaders,
       andExpect = expected)
   }

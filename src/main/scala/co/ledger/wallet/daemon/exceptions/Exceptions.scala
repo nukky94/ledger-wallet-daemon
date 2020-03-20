@@ -19,6 +19,12 @@ case class InvalidEIP55Format(address: String)
     val code = ErrorCodes.CORE_BAD_REQUEST
   } with DaemonException(msg)
 
+case class UnsupportedNativeSegwitException(currencyName: String)
+  extends {
+    val msg = s"Native SegWit is not supported for currency $currencyName"
+    val code = ErrorCodes.INVALID_CURRENCY_FOR_NATIVE_SEGWIT
+  } with DaemonException(msg)
+
 case class AccountNotFoundException(accountIndex: Int) extends {
   val msg = s"Account with index $accountIndex doesn't exist"
   val code = ErrorCodes.ACCOUNT_NOT_FOUND
@@ -126,6 +132,7 @@ object ErrorCodes {
   val INVALID_CURRENCY_FOR_ERC20 = 210
   val ACCOUNT_SYNC_FAILED = 211
   val SYNC_ON_GOING = 212
+  val INVALID_CURRENCY_FOR_NATIVE_SEGWIT = 213
   val CORE_BAD_REQUEST = 301
   val DAEMON_DATABASE_EXCEPTION = 302
   val PROVIDER_BALANCE_EXCEPTION = 303

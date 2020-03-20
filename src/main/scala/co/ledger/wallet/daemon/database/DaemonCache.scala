@@ -62,8 +62,8 @@ trait DaemonCache {
     withWalletPool(poolInfo)(_.currencies())
 
   // ************** wallet *************
-  def createWallet(currencyName: String, walletInfo: WalletInfo)(implicit ec: ExecutionContext): Future[Wallet] = {
-    withWalletPool(walletInfo.poolInfo)(_.addWalletIfNotExist(walletInfo.walletName, currencyName))
+  def createWallet(currencyName: String, walletInfo: WalletInfo, isNativeSegwit: Boolean)(implicit ec: ExecutionContext): Future[Wallet] = {
+    withWalletPool(walletInfo.poolInfo)(_.addWalletIfNotExist(walletInfo.walletName, currencyName, isNativeSegwit))
   }
 
   def getWallets(offset: Int, batch: Int, poolInfo: PoolInfo)(implicit ec: ExecutionContext): Future[(Int, Seq[Wallet])] = {

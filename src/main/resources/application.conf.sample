@@ -297,3 +297,5 @@ explorer = {
     ripple = ${?WALLET_XRP_WS_ENDPOINT}
   }
 }
+
+native_segwit_currencies = ["bitcoin", "bitcoin_testnet", "litecoin", "qtum"]

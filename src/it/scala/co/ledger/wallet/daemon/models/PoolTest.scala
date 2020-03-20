@@ -16,7 +16,7 @@ class PoolTest extends AssertionsForJUnit {
   private val notExistingWallet = Await.result(testPool.wallet("not_exist"), Duration.Inf)
   private val samePool = Pool.newInstance(Await.result(Pool.newCoreInstance(new PoolDto("test_pool", 1L, "", Option(0L))), Duration.Inf), 1L)
 
-  private val wallet = Await.result(testPool.addWalletIfNotExist("test_wallet", "bitcoin").flatMap { testWallet =>
+  private val wallet = Await.result(testPool.addWalletIfNotExist("test_wallet", "bitcoin", isNativeSegwit = false).flatMap { testWallet =>
     testPool.wallet("test_wallet").flatMap { sameWallet =>
       assert(Option((testWallet.getName, testWallet.getCurrency.getName)) === sameWallet.map(wallet => (wallet.getName, wallet.getCurrency.getName)))
       assert(WalletPoolView("test_pool", 1) === Await.result(testPool.view, Duration.Inf))

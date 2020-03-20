@@ -25,8 +25,8 @@ class WalletsService @Inject()(daemonCache: DaemonCache) extends DaemonService {
     }
   }
 
-  def createWallet(currencyName: String, walletInfo: WalletInfo): Future[WalletView] = {
-    daemonCache.createWallet(currencyName, walletInfo).flatMap(_.walletView)
+  def createWallet(currencyName: String, walletInfo: WalletInfo, isNativeSegwit: Boolean): Future[WalletView] = {
+    daemonCache.createWallet(currencyName, walletInfo, isNativeSegwit).flatMap(_.walletView)
   }
 
 }

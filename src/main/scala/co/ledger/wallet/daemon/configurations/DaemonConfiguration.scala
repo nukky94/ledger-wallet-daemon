@@ -47,6 +47,10 @@ object DaemonConfiguration extends Logging{
     }
   }
 
+  val supportedNativeSegwitCurrencies: List[String] = if (config.hasPath("native_segwit_currencies")) {
+    config.getStringList("native_segwit_currencies").asScala.toList
+  } else List[String]()
+
   val adminUsers: Seq[(String, String)] = if (config.hasPath("demo_users")) {
     val usersConfig = config.getConfigList("demo_users").asScala
     for {

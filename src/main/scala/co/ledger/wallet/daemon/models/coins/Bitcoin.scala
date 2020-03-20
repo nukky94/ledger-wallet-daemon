@@ -5,6 +5,7 @@ import java.util.Date
 import co.ledger.core
 import co.ledger.core.implicits._
 import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
+import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.models.coins.Coin._
 import co.ledger.wallet.daemon.utils.HexUtils
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -15,7 +16,7 @@ import scala.concurrent.Future
 object Bitcoin {
   val currencyFamily = core.WalletType.BITCOIN
 
-  def newNetworkParamsView(from: core.BitcoinLikeNetworkParameters): NetworkParamsView = {
+  def newNetworkParamsView(currencyName: String, from: core.BitcoinLikeNetworkParameters): NetworkParamsView = {
     BitcoinNetworkParamsView(
       from.getIdentifier,
       HexUtils.valueOf(from.getP2PKHVersion),
@@ -24,7 +25,8 @@ object Bitcoin {
       from.getFeePolicy.name,
       from.getDustAmount,
       from.getMessagePrefix,
-      from.getUsesTimestampedTransaction
+      from.getUsesTimestampedTransaction,
+      hasNativeSegwitSupport = DaemonConfiguration.supportedNativeSegwitCurrencies.contains(currencyName)
     )
   }
 
@@ -105,7 +107,8 @@ case class BitcoinNetworkParamsView(
                                      @JsonProperty("fee_policy") feePolicy: String,
                                      @JsonProperty("dust_amount") dustAmount: BigInt,
                                      @JsonProperty("message_prefix") messagePrefix: String,
-                                     @JsonProperty("uses_timestamped_transaction") usesTimeStampedTransaction: Boolean
+                                     @JsonProperty("uses_timestamped_transaction") usesTimeStampedTransaction: Boolean,
+                                     @JsonProperty("has_native_segwit_support") hasNativeSegwitSupport: Boolean
                                    ) extends NetworkParamsView
 
 case class BitcoinTransactionView(
