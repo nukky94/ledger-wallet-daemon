@@ -23,13 +23,13 @@ class ServerImpl extends HttpServer {
   override val modules: Seq[Module] = Seq(DaemonCacheModule)
 
   override protected def configureHttp(router: HttpRouter): Unit = {
-router
-  .filter[AccessLoggingFilter[Request]]
-  .filter[LoggingMDCFilter[Request, Response]]
-  .filter[TraceIdMDCFilter[Request, Response]]
-  .filter[CorrelationIdFilter[Request, Response]]
-  .filter[CommonFilters]
-  .filter[DemoUserAuthenticationFilter]
+    router
+      .filter[AccessLoggingFilter[Request]]
+      .filter[LoggingMDCFilter[Request, Response]]
+      .filter[TraceIdMDCFilter[Request, Response]]
+      .filter[CorrelationIdFilter[Request, Response]]
+      .filter[CommonFilters]
+      .filter[DemoUserAuthenticationFilter]
 
     if (DaemonConfiguration.isAuthenticationDisabled) {
       router.filter[PublicKeyAuthenticationFilter]

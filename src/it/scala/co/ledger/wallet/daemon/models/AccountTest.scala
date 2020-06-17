@@ -41,7 +41,7 @@ class AccountTest extends AssertionsForJUnit {
     }.flatMap { info => testWallet.addAccountIfNotExist(info)
       .flatMap { a => a.sync(testPool.name, testWallet.getName).map { syncResult =>
         assert(SynchronizationResult(0, testWallet.getName, testPool.name, syncResult = true) === syncResult)
-        a } } } , Duration.Inf)
+        a } } }, Duration.Inf)
 
   private val account1: core.Account = Await.result(
     testWallet.accountCreationInfo(Option(1)).map { derivation =>
@@ -51,7 +51,7 @@ class AccountTest extends AssertionsForJUnit {
           DerivationView(d._1.path, d._1.owner, Option(PUBKEYS(d._2)), Option(CHAINCODES(d._2)))
         }
       )
-    }.flatMap { info => testWallet.addAccountIfNotExist(info) } , Duration.Inf)
+    }.flatMap { info => testWallet.addAccountIfNotExist(info) }, Duration.Inf)
 
   private val account2: core.Account = Await.result(
     testWallet.accountCreationInfo(Option(2)).map { derivation =>
@@ -61,7 +61,7 @@ class AccountTest extends AssertionsForJUnit {
           DerivationView(d._1.path, d._1.owner, Option(PUBKEYS(d._2)), Option(CHAINCODES(d._2)))
         }
       )
-    }.flatMap { info => testWallet.addAccountIfNotExist(info) } , Duration.Inf)
+    }.flatMap { info => testWallet.addAccountIfNotExist(info) }, Duration.Inf)
 
   private val freshAddresses: Seq[Address] = Await.result(account2.freshAddresses, Duration.Inf)
 

@@ -183,4 +183,12 @@ object ApiClient {
 
   case class GasLimit(@JsonProperty("estimated_gas_limit") limit: BigInt)
 
+  case class XlmFeeInfo(minimumFee: BigInt) extends FeeInfo {
+    def getAmount(feeMethod: FeeMethod): BigInt = feeMethod match {
+      case FeeMethod.SLOW => minimumFee
+      case FeeMethod.NORMAL => minimumFee * 2
+      case FeeMethod.FAST => minimumFee * 10
+    }
+  }
+
 }

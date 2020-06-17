@@ -2,7 +2,6 @@ package co.ledger.wallet.daemon.models
 
 import co.ledger.core
 import co.ledger.core.implicits._
-import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.exceptions.CoreBadRequestException
 import co.ledger.wallet.daemon.models.Account.{Derivation, ExtendedDerivation, _}
 import co.ledger.wallet.daemon.models.Currency._
@@ -167,10 +166,7 @@ object Wallet extends Logging {
   }
 
   private def startListenAccount(coreA: core.Account): core.Account = {
-    if (DaemonConfiguration.realTimeObserverOn && !coreA.isObservingBlockchain) {
-      coreA.startBlockchainObservation()
-      debug(LogMsgMaker.newInstance(s"Real time observer on ${coreA.isObservingBlockchain}").append("account", coreA.getIndex).toString())
-    }
+    coreA.startRealTimeObserver()
     coreA
   }
 

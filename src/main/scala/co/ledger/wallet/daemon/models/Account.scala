@@ -9,18 +9,20 @@ import cats.syntax.traverse._
 import co.ledger.core
 import co.ledger.core._
 import co.ledger.core.implicits.{InvalidEIP55FormatException, NotEnoughFundsException, UnsupportedOperationException, _}
+import co.ledger.wallet.daemon.clients.ApiClient.XlmFeeInfo
 import co.ledger.wallet.daemon.clients.ClientFactory
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
-import co.ledger.wallet.daemon.controllers.TransactionsController.{BTCTransactionInfo, ETHTransactionInfo, TransactionInfo, XRPTransactionInfo}
-import co.ledger.wallet.daemon.exceptions.{ERC20BalanceNotEnough, ERC20NotFoundException, InvalidEIP55Format, SignatureSizeUnmatchException}
+import co.ledger.wallet.daemon.controllers.TransactionsController._
+import co.ledger.wallet.daemon.exceptions.{AmountNotEnoughToActivateAccount, ERC20BalanceNotEnough, ERC20NotFoundException, InvalidEIP55Format, SignatureSizeUnmatchException}
 import co.ledger.wallet.daemon.libledger_core.async.LedgerCoreExecutionContext
 import co.ledger.wallet.daemon.models.Currency._
 import co.ledger.wallet.daemon.models.coins.Coin.TransactionView
-import co.ledger.wallet.daemon.models.coins.{Bitcoin, UnsignedEthereumTransactionView, UnsignedRippleTransactionView}
+import co.ledger.wallet.daemon.models.coins._
 import co.ledger.wallet.daemon.schedulers.observers.{SynchronizationEventReceiver, SynchronizationResult}
 import co.ledger.wallet.daemon.services.LogMsgMaker
 import co.ledger.wallet.daemon.utils.HexUtils
 import co.ledger.wallet.daemon.utils.Utils.RichBigInt
+import co.ledger.wallet.daemon.utils.Utils.RichCoreBigInt
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.google.common.primitives.UnsignedInteger
 import com.twitter.inject.Logging
@@ -91,8 +93,11 @@ object Account extends Logging {
     def broadcastXRPTransaction(rawTx: Array[Byte], signatures: XRPSignature, c: core.Currency): Future[String] =
       Account.broadcastXRPTransaction(rawTx, signatures, a, c)
 
-    def createTransaction(transactionInfo: TransactionInfo, c: core.Currency)(implicit ec: ExecutionContext): Future[TransactionView] =
-      Account.createTransaction(transactionInfo, a, c)
+    def broadcastXLMTransaction(rawTx: Array[Byte], signatures: XLMSignature, c: core.Currency): Future[String] =
+      Account.broadcastXLMTransaction(rawTx, signatures, a, c)
+
+    def createTransaction(transactionInfo: TransactionInfo, w: core.Wallet)(implicit ec: ExecutionContext): Future[TransactionView] =
+      Account.createTransaction(transactionInfo, a, w)
 
     def operation(uid: String, fullOp: Int)(implicit ec: ExecutionContext): Future[Option[core.Operation]] =
       Account.operation(uid, fullOp, a)
@@ -250,6 +255,19 @@ object Account extends Logging {
     }
   }
 
+  def broadcastXLMTransaction(rawTx: Array[Byte], signature: XLMSignature, a: core.Account, c: core.Currency): Future[String] = {
+    c.parseUnsignedXLMTransaction(rawTx) match {
+      case Right(tx) =>
+        // set signature
+        tx.putSignature(signature, tx.getSourceAccount)
+        val signedRawTx = tx.toRawTransaction
+        debug(s"transaction after sign '${HexUtils.valueOf(signedRawTx)}'")
+        a.asStellarLikeAccount().broadcastRawTransaction(signedRawTx)
+
+      case Left(m) => Future.failed(new UnsupportedOperationException(s"Account type not supported, can't broadcast XLM transaction: $m"))
+    }
+  }
+
   private def createBTCTransaction(ti: BTCTransactionInfo, a: core.Account, c: core.Currency)(implicit ec: ExecutionContext): Future[TransactionView] = {
     val partial: Boolean = ti.partialTx.getOrElse(false)
     for {
@@ -337,12 +355,75 @@ object Account extends Logging {
     }
   }
 
-  def createTransaction(transactionInfo: TransactionInfo, a: core.Account, c: core.Currency)(implicit ec: ExecutionContext): Future[TransactionView] = {
+  private def createXLMTransaction(ti: XLMTransactionInfo, a: core.Account, w: core.Wallet)(implicit ec: ExecutionContext): Future[TransactionView] = {
+    val builder = a.asStellarLikeAccount().buildTransaction()
+    val stellarAccount = a.asStellarLikeAccount()
+    val stellarWallet = w.asStellarLikeWallet()
+    val currency = w.getCurrency
+
+    for {
+      // Set sequence
+      // A transaction’s sequence number needs to match the account’s sequence number.
+      // So, we need to get the account’s current sequence number from the network and then
+      // sequence number is required to be increased with every transaction.
+      currentSequence <- stellarAccount.getSequence()
+      _ = builder.setSequence(currentSequence.add(core.BigInt.fromLong(1L)))
+
+      // Set base fee
+      baseFee <- ti.fees match {
+        case Some(fee) => Future.successful(fee)
+        case None => stellarAccount.getFeeStats().map { s =>
+          val minimumFee = scala.BigInt(s.getModeAcceptedFee)
+          val feeMethod = ti.feesSpeedLevel.getOrElse(FeeMethod.SLOW)
+          XlmFeeInfo(minimumFee).getAmount(feeMethod)
+        }
+      }
+      _ = builder.setBaseFee(currency.convertAmount(baseFee))
+
+      // Set memo
+      _ = ti.memo.foreach {
+        case m: StellarTextMemo => builder.setTextMemo(m.value)
+        case m: StellarNumberMemo => builder.setNumberMemo(m.bigIntValue.asCoreBigInt)
+        case m: StellarHashMemo => builder.setHashMemo(m.byteArrayValue)
+        case m: StellarReturnMemo => builder.setReturnMemo(m.byteArrayValue)
+      }
+
+      amount = currency.convertAmount(ti.amount)
+      recipient = ti.recipient
+
+      // Check if recipient exists
+      recipientExists <- stellarWallet.exists(recipient)
+
+      // Get base reserve
+      baseReserve <- stellarAccount.getBaseReserve()
+
+      // To activate a new account, send at least the base reserve amount.
+      _ <- if (!recipientExists && amount.toLong < baseReserve.toLong) {
+        Future.failed(AmountNotEnoughToActivateAccount(currency, baseReserve))
+      } else {
+        Future.unit
+      }
+
+      // Set amount
+      _ = if (recipientExists) {
+        builder.addNativePayment(recipient, amount)
+      } else {
+        builder.addCreateAccount(recipient, amount)
+      }
+
+      // build and parse as unsigned tx view
+      view <- builder.build().map(tx => UnsignedStellarTransactionView(tx, ti))
+    } yield view
+  }
+
+  def createTransaction(transactionInfo: TransactionInfo, a: core.Account, w: core.Wallet)(implicit ec: ExecutionContext): Future[TransactionView] = {
     info(s"Creating transaction $transactionInfo")
+    val c = w.getCurrency
     (transactionInfo, c.getWalletType) match {
       case (ti: BTCTransactionInfo, WalletType.BITCOIN) => createBTCTransaction(ti, a, c)
       case (ti: ETHTransactionInfo, WalletType.ETHEREUM) => createETHTransaction(ti, a, c)
       case (ti: XRPTransactionInfo, WalletType.RIPPLE) => createXRPTransaction(ti, a, c)
+      case (ti: XLMTransactionInfo, WalletType.STELLAR) => createXLMTransaction(ti, a, w)
       case _ => Future.failed(new UnsupportedOperationException("Account type not supported, can't create transaction"))
     }
   }
@@ -421,15 +502,18 @@ object Account extends Logging {
   }
 
   def startRealTimeObserver(a: core.Account): Unit = {
-    if (DaemonConfiguration.realTimeObserverOn && !a.isObservingBlockchain) a.startBlockchainObservation()
-    debug(LogMsgMaker.newInstance(s"Set real time observer on ${a.isObservingBlockchain}").append("account", a).toString())
+    if (DaemonConfiguration.realTimeObserverOn && !a.isInstanceOfStellarLikeAccount && !a.isObservingBlockchain) {
+      a.startBlockchainObservation()
+      debug(LogMsgMaker.newInstance(s"Set real time observer on ${a.isObservingBlockchain}").append("account", a).toString())
+    }
   }
 
   def stopRealTimeObserver(a: core.Account): Unit = {
-    debug(LogMsgMaker.newInstance("Stop real time observer").append("account", a).toString())
-    if (a.isObservingBlockchain) a.stopBlockchainObservation()
+    if (!a.isInstanceOfStellarLikeAccount && a.isObservingBlockchain) {
+      debug(LogMsgMaker.newInstance("Stop real time observer").append("account", a).toString())
+      a.stopBlockchainObservation()
+    }
   }
-
 
   class Derivation(private val accountCreationInfo: core.AccountCreationInfo) {
     val index: Int = accountCreationInfo.getIndex

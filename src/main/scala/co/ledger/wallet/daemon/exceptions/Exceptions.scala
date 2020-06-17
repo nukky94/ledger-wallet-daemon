@@ -2,6 +2,9 @@ package co.ledger.wallet.daemon.exceptions
 
 import java.util.UUID
 
+import collection.JavaConverters._
+import co.ledger.core.{Amount, Currency}
+
 case class ERC20NotFoundException(contract: String) extends {
   val msg = s"No ERC20 token $contract in your account"
   val code = ErrorCodes.ERC20_NOT_FOUND
@@ -11,6 +14,14 @@ case class ERC20BalanceNotEnough(tokenAddress: String, balance: BigInt, need: Bi
   extends {
     val msg = s"Not enough funds on ERC20 ($tokenAddress) account: having $balance, need $need"
     val code = ErrorCodes.ERC20_BALANCE_NOT_ENOUGH
+  } with DaemonException(msg)
+
+case class AmountNotEnoughToActivateAccount(currency: Currency, minimalAmount: Amount)
+  extends {
+    private val currencyUnit = currency.getUnits.asScala.drop(1).head
+    private val formattedMinimalAmount = minimalAmount.toUnit(currencyUnit).toLong
+    val msg = s"Recipient address is inactive. Send at least $formattedMinimalAmount ${currencyUnit.getCode} to activate it"
+    val code = ErrorCodes.AMOUNT_NOT_ENOUGH_TO_ACTIVATE_ACCOUNT
   } with DaemonException(msg)
 
 case class InvalidEIP55Format(address: String)
@@ -119,6 +130,7 @@ sealed abstract class DaemonException(msg: String, t: Throwable = null) extends 
 object ErrorCodes {
   val SIGNATURE_SIZE_UNMATCH = 101
   val ERC20_BALANCE_NOT_ENOUGH = 102
+  val AMOUNT_NOT_ENOUGH_TO_ACTIVATE_ACCOUNT = 103
   val ERC20_NOT_FOUND = 200
   val ACCOUNT_NOT_FOUND = 201
   val OPERATION_NOT_FOUND = 202

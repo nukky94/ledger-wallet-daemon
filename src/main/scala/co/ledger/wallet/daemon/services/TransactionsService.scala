@@ -26,12 +26,13 @@ class TransactionsService @Inject()(defaultDaemonCache: DefaultDaemonCache, mess
           case WalletType.BITCOIN => Right(messageBodyManager.read[CreateBTCTransactionRequest](request))
           case WalletType.ETHEREUM => Right(messageBodyManager.read[CreateETHTransactionRequest](request))
           case WalletType.RIPPLE => Right(messageBodyManager.read[CreateXRPTransactionRequest](request))
+          case WalletType.STELLAR => Right(messageBodyManager.read[CreateXLMTransactionRequest](request))
           case w => Left(CurrencyNotFoundException(w.name()))
         }
 
         transactionInfoEither match {
           case Right(transactionInfo) =>
-            account.createTransaction(transactionInfo.transactionInfo, wallet.getCurrency)
+            account.createTransaction(transactionInfo.transactionInfo, wallet)
           case Left(t) => Future.failed(t)
         }
     }
@@ -47,11 +48,14 @@ class TransactionsService @Inject()(defaultDaemonCache: DefaultDaemonCache, mess
               val req = messageBodyManager.read[BroadcastBTCTransactionRequest](request)
               account.broadcastBTCTransaction(req.rawTx, req.pairedSignatures, currentHeight, wallet.getCurrency)
             case WalletType.ETHEREUM =>
-              val req = messageBodyManager.read[BroadcastETHTransactionRequest](request)
+              val req = messageBodyManager.read[BroadcastTransactionRequest](request)
               account.broadcastETHTransaction(req.hexTx, req.hexSig, wallet.getCurrency)
             case WalletType.RIPPLE =>
-              val req = messageBodyManager.read[BroadcastXRPTransactionRequest](request)
+              val req = messageBodyManager.read[BroadcastTransactionRequest](request)
               account.broadcastXRPTransaction(req.hexTx, req.hexSig, wallet.getCurrency)
+            case WalletType.STELLAR =>
+              val req = messageBodyManager.read[BroadcastTransactionRequest](request)
+              account.broadcastXLMTransaction(req.hexTx, req.hexSig, wallet.getCurrency)
             case w => Future.failed(CurrencyNotFoundException(w.name()))
           }
         } yield r

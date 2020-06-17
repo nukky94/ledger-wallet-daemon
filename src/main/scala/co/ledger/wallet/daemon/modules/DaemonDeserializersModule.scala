@@ -1,7 +1,7 @@
 package co.ledger.wallet.daemon.modules
 
 import co.ledger.core
-import co.ledger.wallet.daemon.models.coins.{BitcoinNetworkParamsView, EthereumNetworkParamView, RippleNetworkParamView}
+import co.ledger.wallet.daemon.models.coins.{BitcoinNetworkParamsView, EthereumNetworkParamView, RippleNetworkParamView, StellarNetworkParamView}
 import co.ledger.wallet.daemon.models.{CurrencyView, WalletView, UnitView => ModelUnit}
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.module.SimpleModule
@@ -52,6 +52,7 @@ object Deserializers {
         case core.WalletType.BITCOIN => mapper.readValue[BitcoinNetworkParamsView](node.get("network_params").toString, classOf[BitcoinNetworkParamsView])
         case core.WalletType.ETHEREUM => mapper.readValue[EthereumNetworkParamView](node.get("network_params").toString, classOf[EthereumNetworkParamView])
         case core.WalletType.RIPPLE => mapper.readValue[RippleNetworkParamView](node.get("network_params").toString, classOf[RippleNetworkParamView])
+        case core.WalletType.STELLAR => mapper.readValue[StellarNetworkParamView](node.get("network_params").toString, classOf[StellarNetworkParamView])
         case _ => throw new NotImplementedError()
       }
       CurrencyView(name, family, bip44CoinType, paymentUriScheme, units.toList, networkParams)

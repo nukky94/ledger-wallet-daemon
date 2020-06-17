@@ -2,6 +2,7 @@ package co.ledger.wallet.daemon.controllers
 
 import co.ledger.core.{BitcoinLikePickingStrategy, RippleLikeMemo}
 import co.ledger.wallet.daemon.controllers.requests.{CommonMethodValidations, RequestWithUser}
+import co.ledger.wallet.daemon.models.coins.StellarMemo
 import co.ledger.wallet.daemon.models.{AccountInfo, FeeMethod}
 import co.ledger.wallet.daemon.services.TransactionsService
 import co.ledger.wallet.daemon.utils.HexUtils
@@ -58,28 +59,10 @@ object TransactionsController {
     def accountInfo: AccountInfo = AccountInfo(account_index, wallet_name, pool_name, user.pubKey)
   }
 
-  trait BroadcastTransactionRequest
-
-  case class BroadcastETHTransactionRequest(raw_transaction: String,
-                                            signatures: Seq[String],
-                                            request: Request
-                                           ) extends BroadcastTransactionRequest {
-    def hexTx: Array[Byte] = HexUtils.valueOf(raw_transaction)
-
-    def hexSig: Array[Byte] = HexUtils.valueOf(signatures.head)
-
-    @MethodValidation
-    def validateSignatures: ValidationResult = ValidationResult.validate(
-      signatures.size == 1,
-      s"expecting 1 DER signature, found ${signatures.size} instead."
-    )
-  }
-
   case class BroadcastBTCTransactionRequest(raw_transaction: String,
                                             signatures: Seq[String],
                                             pubkeys: Seq[String],
-                                            request: Request
-                                           ) extends BroadcastTransactionRequest {
+                                            request: Request) {
     def rawTx: Array[Byte] = HexUtils.valueOf(raw_transaction)
 
     def pairedSignatures: Seq[(Array[Byte], Array[Byte])] = signatures.zipWithIndex.map { case (sig, index) =>
@@ -96,10 +79,10 @@ object TransactionsController {
     def transactionInfo: TransactionInfo
   }
 
-  case class BroadcastXRPTransactionRequest(raw_transaction: String,
-                                            signatures: Seq[String],
-                                            request: Request
-                                           ) extends BroadcastTransactionRequest {
+  // ETH, XRP and XLM
+  case class BroadcastTransactionRequest(raw_transaction: String,
+                                         signatures: Seq[String],
+                                         request: Request) {
     def hexTx: Array[Byte] = HexUtils.valueOf(raw_transaction)
 
     def hexSig: Array[Byte] = HexUtils.valueOf(signatures.head)
@@ -174,6 +157,39 @@ object TransactionsController {
     def validateFees: ValidationResult = CommonMethodValidations.validateFees(feesValue, fees_level)
   }
 
+  case class XLMMemoRequest(`type`: String, value: String)
+
+  case class CreateXLMTransactionRequest(recipient: String,
+                                         amount: String,
+                                         fees_amount: Option[String],
+                                         fees_level: Option[String],
+                                         memo: Option[XLMMemoRequest]) extends CreateTransactionRequest {
+    def feesValue: Option[BigInt] = fees_amount.map(BigInt(_))
+
+    override def transactionInfo: TransactionInfo =
+      XLMTransactionInfo(
+        recipient,
+        BigInt(amount),
+        feesValue,
+        fees_level,
+        memo.flatMap(m => StellarMemo.from(m.`type`, m.value))
+      )
+
+    @MethodValidation
+    def validateMemo: ValidationResult = {
+      memo match {
+        case Some(XLMMemoRequest(memoType, memoValue)) =>
+          StellarMemo.from(memoType, memoValue)
+            .map(_ => ValidationResult.Valid())
+            .getOrElse(ValidationResult.Invalid(s"Invalid memo with type=$memoType and value=$memoValue"))
+        case None => ValidationResult.Valid()
+      }
+    }
+
+    @MethodValidation
+    def validateFees: ValidationResult = CommonMethodValidations.validateFees(feesValue, fees_level)
+  }
+
   trait TransactionInfo
 
   case class BTCTransactionInfo(recipient: String,
@@ -204,4 +220,11 @@ object TransactionsController {
     lazy val feesSpeedLevel: Option[FeeMethod] = feesLevel.map { feesLevel => FeeMethod.from(feesLevel) }
   }
 
+  case class XLMTransactionInfo(recipient: String,
+                                amount: BigInt,
+                                fees: Option[BigInt],
+                                feesLevel: Option[String],
+                                memo: Option[StellarMemo]) extends TransactionInfo {
+    lazy val feesSpeedLevel: Option[FeeMethod] = feesLevel.map { level => FeeMethod.from(level) }
+  }
 }

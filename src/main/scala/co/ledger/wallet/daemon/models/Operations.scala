@@ -8,7 +8,7 @@ import co.ledger.wallet.daemon.exceptions.InvalidCurrencyForErc20Operation
 import co.ledger.wallet.daemon.models.Wallet.RichCoreWallet
 import co.ledger.wallet.daemon.models.coins.Coin.TransactionView
 import co.ledger.wallet.daemon.models.coins.EthereumTransactionView.ERC20
-import co.ledger.wallet.daemon.models.coins.{Bitcoin, EthereumTransactionView, RippleTransactionView}
+import co.ledger.wallet.daemon.models.coins.{Bitcoin, EthereumTransactionView, RippleTransactionView, StellarTransactionView}
 import com.fasterxml.jackson.annotation.JsonProperty
 
 import scala.collection.JavaConverters._
@@ -73,6 +73,7 @@ object Operations {
         case core.WalletType.BITCOIN => Some(Bitcoin.newTransactionView(operation.asBitcoinLikeOperation().getTransaction))
         case core.WalletType.ETHEREUM => Some(EthereumTransactionView(operation.asEthereumLikeOperation().getTransaction))
         case core.WalletType.RIPPLE => Some(RippleTransactionView(operation.asRippleLikeOperation().getTransaction))
+        case core.WalletType.STELLAR => Some(StellarTransactionView(operation))
         case _ => None
       }
     } else {

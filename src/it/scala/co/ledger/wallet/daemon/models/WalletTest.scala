@@ -52,7 +52,7 @@ class WalletTest extends AssertionsForJUnit {
             DerivationView(d._1.path, d._1.owner, Option(PUBKEYS(d._2)), Option(CHAINCODES(d._2)))
           }
         )
-      }.flatMap { info => testWallet.addAccountIfNotExist(info) } , Duration.Inf)
+      }.flatMap { info => testWallet.addAccountIfNotExist(info) }, Duration.Inf)
 
     val account4: core.Account = Await.result(
       testWallet.accountCreationInfo(Option(4)).map { derivation =>

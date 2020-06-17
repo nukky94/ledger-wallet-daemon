@@ -49,8 +49,12 @@ object Utils {
     java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap[T, java.lang.Boolean]()).asScala
   }
 
-  implicit class RichBigInt(val i: co.ledger.core.BigInt) extends AnyVal {
+  implicit class RichBigInt(val i: core.BigInt) extends AnyVal {
     def asScala: BigInt = BigInt(i.toString(10))
+  }
+
+  implicit class RichCoreBigInt(val i: BigInt) extends AnyVal {
+    def asCoreBigInt: core.BigInt = core.BigInt.fromIntegerString(i.toString(), 10)
   }
 
   /**

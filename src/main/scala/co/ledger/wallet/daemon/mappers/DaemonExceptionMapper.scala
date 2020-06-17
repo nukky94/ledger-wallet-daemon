@@ -75,6 +75,11 @@ class DaemonExceptionMapper @Inject()(response: ResponseBuilder)
           daemonExceptionInfo(e) + ("contract" -> e.tokenAddress),
           response
         )
+      case e: AmountNotEnoughToActivateAccount =>
+        ResponseSerializer.serializeBadRequest(request,
+          daemonExceptionInfo(e) + ("currency_name" -> e.currency.getName),
+          response
+        )
       case e: AccountSyncException =>
         ResponseSerializer.serializeBadRequest(request,
           daemonExceptionInfo(e),

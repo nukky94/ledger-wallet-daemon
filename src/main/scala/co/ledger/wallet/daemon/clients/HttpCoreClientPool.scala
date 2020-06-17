@@ -27,11 +27,13 @@ class HttpCoreClientPool(val ec: ExecutionContext, client: ScalaHttpClientPool) 
     Future(Try(new URL(httpCoreRequest.getUrl)).map(url => (url, NetUtils.urlToHost(url))))
       .flatMap {
         case Success((url, host)) =>
+          val headers = Map(
+            "User-Agent" -> "ledger-lib-core",
+            "Content-Type" -> "application/json"
+          ) ++ httpCoreRequest.getHeaders.asScala.toMap
           val req = RequestBuilder()
             .url(url)
-            .addHeader("User-Agent", "ledger-lib-core")
-            .addHeader("Content-Type", "application/json")
-            .addHeaders(httpCoreRequest.getHeaders.asScala.toMap)
+            .addHeaders(headers)
             .build(resolveMethod(httpCoreRequest.getMethod), content(httpCoreRequest))
 
           client.execute(host, req)
